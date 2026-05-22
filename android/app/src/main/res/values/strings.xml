@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">MinersBuddy</string>
+    <string name="widget_description">Mining Mate Exam Countdown</string>
 </resources>

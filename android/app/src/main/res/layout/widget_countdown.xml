@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_background"
+    android:padding="16dp"
+    android:gravity="center">
+
+    <TextView
+        android:id="@+id/widget_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="MINING MATE"
+        android:textColor="#F59E0B"
+        android:textSize="10sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.15"
+        android:layout_marginBottom="4dp"/>
+
+    <TextView
+        android:id="@+id/widget_days"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="21"
+        android:textColor="#F0F6FC"
+        android:textSize="48sp"
+        android:textStyle="bold"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="DAYS LEFT"
+        android:textColor="#8B949E"
+        android:textSize="10sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.1"/>
+
+    <TextView
+        android:id="@+id/widget_date"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="10 Jun 2026"
+        android:textColor="#484F58"
+        android:textSize="9sp"
+        android:layout_marginTop="6dp"/>
+
+</LinearLayout>
