@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "922482355724",
+    "project_id": "minersbuddy-aa260",
+    "storage_bucket": "minersbuddy-aa260.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:922482355724:android:b3fc6f580f86fd2ec88829",
+        "android_client_info": {
+          "package_name": "com.minersbuddy"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCpn6b-89bMZaW6b9VyMl3UZbx5qNSVpI4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
