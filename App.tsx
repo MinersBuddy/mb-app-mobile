@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
 import { StatusBar } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { QueryClientProvider } from '@tanstack/react-query';  // ← ADD
-import { queryClient } from './src/lib/queryClient';           // ← ADD
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from './src/lib/queryClient';
 import AppNavigator from './src/navigation/AppNavigator';
 import {
   requestNotificationPermission,
@@ -27,11 +27,11 @@ export default function App() {
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>  {/* ← WRAP */}
+    <QueryClientProvider client={queryClient}>
       <SafeAreaProvider>
         <StatusBar barStyle="light-content" backgroundColor="#0F1923" />
         <AppNavigator />
       </SafeAreaProvider>
-    </QueryClientProvider>                       {/* ← CLOSE */}
+    </QueryClientProvider>
   );
 }
