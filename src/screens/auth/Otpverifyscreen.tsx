@@ -1,3 +1,11 @@
+/**
+ * OtpVerifyScreen.tsx
+ * 4-digit OTP entry — auto-submit on last digit
+ * SUCCESS hone ke baad → Register screen (MainTabs nahi!)
+ *
+ * Flow: MobileVerify → OtpVerify → Register → MainTabs
+ */
+
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
@@ -10,142 +18,158 @@ import {
   Platform,
   Animated,
   ActivityIndicator,
-  Linking,
   NativeSyntheticEvent,
   TextInputKeyPressEventData,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import {
-  NativeStackNavigationProp,
-} from '@react-navigation/native-stack';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type OtpVerifyNavProp = NativeStackNavigationProp<RootStackParamList, 'OtpVerify'>;
-type OtpVerifyRouteProp = RouteProp<RootStackParamList, 'OtpVerify'>;
-
 type Props = {
-  navigation: OtpVerifyNavProp;
-  route: OtpVerifyRouteProp;
+  navigation: NativeStackNavigationProp<RootStackParamList, 'OtpVerify'>;
+  route:      RouteProp<RootStackParamList, 'OtpVerify'>;
+  /**
+   * Tumhara actual OTP verify function — Firebase ya backend
+   * undefined hone par mock delay use hoga (dev mode)
+   */
+  onVerifyOtp?: (phoneE164: string, otp: string) => Promise<void>;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const OTP_LENGTH = 4;
-const RESEND_COUNTDOWN = 30; // seconds
+const OTP_LEN        = 4;
+const RESEND_SECONDS = 30;
 
-const BLUE       = '#3B82F6';
-const BLUE_LIGHT = '#BFDBFE';
-const ERROR      = '#EF4444';
+// ─── Design Tokens ────────────────────────────────────────────────────────────
 
-// ─── Single OTP box ───────────────────────────────────────────────────────────
+const C = {
+  navy:      '#0F1923',
+  navyMid:   '#1A2B3C',
+  navyLight: '#243447',
+  gold:      '#F59E0B',
+  goldDim:   'rgba(245,158,11,0.12)',
+  goldBord:  'rgba(245,158,11,0.35)',
+  white:     '#FFFFFF',
+  muted:     '#94A3B8',
+  mutedDk:   '#64748B',
+  success:   '#10B981',
+  successDim:'rgba(16,185,129,0.15)',
+  error:     '#EF4444',
+  errorDim:  'rgba(239,68,68,0.12)',
+} as const;
 
-type OtpBoxProps = {
-  value: string;
-  isFocused: boolean;
-  hasError: boolean;
-  index: number;
-  inputRef: React.RefObject<TextInput>;
-  onFocus: () => void;
-  onChangeText: (text: string) => void;
-  onKeyPress: (e: NativeSyntheticEvent<TextInputKeyPressEventData>, index: number) => void;
+// ─── Single OTP Box ───────────────────────────────────────────────────────────
+
+type BoxProps = {
+  value:      string;
+  isFocused:  boolean;
+  hasError:   boolean;
+  isSuccess:  boolean;
+  index:      number;
+  inputRef:   React.RefObject<TextInput>;
+  onFocus:    () => void;
+  onChange:   (text: string) => void;
+  onKeyPress: (e: NativeSyntheticEvent<TextInputKeyPressEventData>, i: number) => void;
 };
 
-const OtpBox = ({
-  value,
-  isFocused,
-  hasError,
-  index,
-  inputRef,
-  onFocus,
-  onChangeText,
-  onKeyPress,
-}: OtpBoxProps) => {
-  const borderColor = hasError
-    ? ERROR
-    : isFocused
-    ? BLUE
-    : value
-    ? BLUE_LIGHT
-    : '#D1D5DB';
+const OtpBox = ({ value, isFocused, hasError, isSuccess, index, inputRef, onFocus, onChange, onKeyPress }: BoxProps) => {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (value) {
+      Animated.sequence([
+        Animated.timing(scaleAnim, { toValue: 1.15, duration: 80, useNativeDriver: true }),
+        Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, speed: 25, bounciness: 8 }),
+      ]).start();
+    }
+  }, [value]);
+
+  const borderColor = hasError   ? C.error
+                    : isSuccess  ? C.success
+                    : isFocused  ? C.gold
+                    : value      ? C.goldBord
+                    : C.navyLight;
+
+  const bgColor = hasError   ? C.errorDim
+                : isSuccess  ? C.successDim
+                : isFocused  ? C.goldDim
+                : C.navyMid;
 
   return (
-    <View
+    <Animated.View
       style={[
-        styles.otpBox,
-        {
-          borderColor,
-          backgroundColor: isFocused ? '#EFF6FF' : '#FFFFFF',
-        },
+        styles.boxWrap,
+        { borderColor, backgroundColor: bgColor, transform: [{ scale: scaleAnim }] },
+        isFocused && styles.boxFocusShadow,
       ]}
     >
       <TextInput
         ref={inputRef}
-        style={styles.otpInput}
+        style={[
+          styles.boxInput,
+          value && { color: isSuccess ? C.success : hasError ? C.error : C.gold },
+        ]}
         value={value}
-        onChangeText={onChangeText}
+        onChangeText={onChange}
         onKeyPress={(e) => onKeyPress(e, index)}
         onFocus={onFocus}
         keyboardType="number-pad"
         maxLength={1}
         textAlign="center"
-        selectionColor={BLUE}
+        selectionColor={C.gold}
         caretHidden
         accessibilityLabel={`OTP digit ${index + 1}`}
       />
-    </View>
+    </Animated.View>
   );
 };
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
-export default function OtpVerifyScreen({ navigation, route }: Props) {
-  const phone: string = route?.params?.phone ?? '9142342848';
+export default function OtpVerifyScreen({ navigation, route, onVerifyOtp }: Props) {
+  const phone = route?.params?.phone ?? '';
 
-  const [otp, setOtp]               = useState<string[]>(Array(OTP_LENGTH).fill(''));
-  const [focusedIdx, setFocusedIdx] = useState<number>(0);
-  const [loading, setLoading]       = useState<boolean>(false);
-  const [error, setError]           = useState<string>('');
-  const [countdown, setCountdown]   = useState<number>(RESEND_COUNTDOWN);
-  const [canResend, setCanResend]   = useState<boolean>(false);
+  const [otp,        setOtp]        = useState<string[]>(Array(OTP_LEN).fill(''));
+  const [focusedIdx, setFocusedIdx] = useState(0);
+  const [loading,    setLoading]    = useState(false);
+  const [error,      setError]      = useState('');
+  const [success,    setSuccess]    = useState(false);
+  const [countdown,  setCountdown]  = useState(RESEND_SECONDS);
+  const [canResend,  setCanResend]  = useState(false);
 
-  // One ref per box
   const inputRefs = useRef<React.RefObject<TextInput>[]>(
-    Array(OTP_LENGTH).fill(null).map(() => React.createRef<TextInput>()),
+    Array(OTP_LEN).fill(null).map(() => React.createRef<TextInput>()),
   );
-
-  // Shake animation for wrong OTP
-  const shakeAnim = useRef(new Animated.Value(0)).current;
-
-  // Button opacity for loading state
+  const shakeAnim  = useRef(new Animated.Value(0)).current;
   const btnOpacity = useRef(new Animated.Value(1)).current;
 
-  // ── Auto-focus first box on mount ──
+  // Auto-focus first box
   useEffect(() => {
-    setTimeout(() => inputRefs.current[0]?.current?.focus(), 300);
+    const t = setTimeout(() => inputRefs.current[0]?.current?.focus(), 350);
+    return () => clearTimeout(t);
   }, []);
 
-  // ── Countdown timer ──
+  // Countdown timer
   useEffect(() => {
     if (countdown === 0) { setCanResend(true); return; }
-    const id = setTimeout(() => setCountdown((c) => c - 1), 1000);
+    const id = setTimeout(() => setCountdown(c => c - 1), 1000);
     return () => clearTimeout(id);
   }, [countdown]);
 
-  // ── Shake animation ──
-  const shake = () => {
+  const shake = () =>
     Animated.sequence([
-      Animated.timing(shakeAnim, { toValue: 10,  duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: -10, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 12,  duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -12, duration: 50, useNativeDriver: true }),
       Animated.timing(shakeAnim, { toValue: 8,   duration: 50, useNativeDriver: true }),
       Animated.timing(shakeAnim, { toValue: -8,  duration: 50, useNativeDriver: true }),
       Animated.timing(shakeAnim, { toValue: 0,   duration: 50, useNativeDriver: true }),
     ]).start();
-  };
 
-  // ── Handle digit input ──
+  // ── Digit input ──────────────────────────────────────────────────────────
+
   const handleChange = (text: string, index: number) => {
     if (error) setError('');
     const digit = text.replace(/\D/g, '');
@@ -155,18 +179,15 @@ export default function OtpVerifyScreen({ navigation, route }: Props) {
     updated[index] = digit;
     setOtp(updated);
 
-    // Move to next box
-    if (index < OTP_LENGTH - 1) {
+    if (index < OTP_LEN - 1) {
       inputRefs.current[index + 1]?.current?.focus();
       setFocusedIdx(index + 1);
     } else {
-      // Last box filled — auto submit
       inputRefs.current[index]?.current?.blur();
       handleVerify(updated.join(''));
     }
   };
 
-  // ── Handle backspace ──
   const handleKeyPress = (
     e: NativeSyntheticEvent<TextInputKeyPressEventData>,
     index: number,
@@ -185,11 +206,11 @@ export default function OtpVerifyScreen({ navigation, route }: Props) {
     }
   };
 
-  // ── Verify OTP ──
+  // ── Verify ───────────────────────────────────────────────────────────────
+
   const handleVerify = async (code?: string) => {
     const finalOtp = code ?? otp.join('');
-
-    if (finalOtp.length < OTP_LENGTH) {
+    if (finalOtp.length < OTP_LEN) {
       setError('Please enter the complete OTP.');
       shake();
       return;
@@ -199,15 +220,25 @@ export default function OtpVerifyScreen({ navigation, route }: Props) {
     Animated.timing(btnOpacity, { toValue: 0.7, duration: 150, useNativeDriver: true }).start();
 
     try {
-      // 🔌 Replace with your actual API call:
-      // await authService.verifyOtp(phone, finalOtp);
-      await new Promise((res) => setTimeout(res, 1500)); // mock delay
+      if (onVerifyOtp) {
+        await onVerifyOtp(`+91${phone}`, finalOtp);
+      } else {
+        // Dev mock — replace with Firebase verifyOtp
+        await new Promise(r => setTimeout(r, 1200));
+      }
 
-      navigation.navigate('MainTabs');
+      setSuccess(true);
+
+      // Brief success flash → then navigate to Register
+      setTimeout(() => {
+        // ✅ Register screen pe jaate hain, phone pass karte hain
+        navigation.navigate('Register', { phone });
+      }, 600);
+
     } catch {
       setError('Invalid OTP. Please try again.');
       shake();
-      setOtp(Array(OTP_LENGTH).fill(''));
+      setOtp(Array(OTP_LEN).fill(''));
       setTimeout(() => {
         inputRefs.current[0]?.current?.focus();
         setFocusedIdx(0);
@@ -218,26 +249,29 @@ export default function OtpVerifyScreen({ navigation, route }: Props) {
     }
   };
 
-  // ── Resend OTP ──
+  // ── Resend ───────────────────────────────────────────────────────────────
+
   const handleResend = async () => {
     if (!canResend) return;
     setCanResend(false);
-    setCountdown(RESEND_COUNTDOWN);
-    setOtp(Array(OTP_LENGTH).fill(''));
+    setCountdown(RESEND_SECONDS);
+    setOtp(Array(OTP_LEN).fill(''));
     setError('');
-    // 🔌 Replace with your actual resend call:
-    // await authService.sendOtp(phone);
+    // 🔌 Replace with: await authService.sendOtp(`+91${phone}`);
     inputRefs.current[0]?.current?.focus();
     setFocusedIdx(0);
   };
 
-  const isComplete = otp.every((d) => d !== '');
+  const isComplete = otp.every(d => d !== '');
 
-  // ─── Render ──────────────────────────────────────────────────────────────────
+  // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle="light-content" backgroundColor={C.navy} />
+
+      <View style={styles.ring1} />
+      <View style={styles.ring2} />
 
       <KeyboardAvoidingView
         style={styles.flex}
@@ -245,27 +279,35 @@ export default function OtpVerifyScreen({ navigation, route }: Props) {
       >
         <View style={styles.container}>
 
+          {/* ── Back ── */}
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={() => navigation.goBack()}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.backIcon}>←</Text>
+          </TouchableOpacity>
+
           {/* ── Header ── */}
           <View style={styles.header}>
-            <Text style={styles.eyebrow}>Mobile Verification</Text>
-            <Text style={styles.title}>Please verify OTP</Text>
-            <Text style={styles.subtitle}>
-              We have sent an OTP on{' '}
-              <Text
-                style={styles.phoneLink}
-                onPress={() => navigation.goBack()}
-              >
-                {phone} ✏️
+            <Text style={styles.eyebrow}>STEP 2 OF 3 — OTP VERIFICATION</Text>
+            <Text style={styles.title}>Enter the code</Text>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.subtitle}>
+                Sent to{' '}
+                <Text style={styles.phoneHighlight}>+91 {phone}</Text>
+                {'  '}
+                <Text style={styles.editHint}>✏️ Change</Text>
               </Text>
-            </Text>
+            </TouchableOpacity>
           </View>
 
           {/* ── OTP Boxes ── */}
           <Animated.View
-            style={[
-              styles.otpRow,
-              { transform: [{ translateX: shakeAnim }] },
-            ]}
+            style={[styles.otpRow, { transform: [{ translateX: shakeAnim }] }]}
           >
             {otp.map((digit, i) => (
               <OtpBox
@@ -274,52 +316,56 @@ export default function OtpVerifyScreen({ navigation, route }: Props) {
                 value={digit}
                 isFocused={focusedIdx === i}
                 hasError={!!error}
+                isSuccess={success}
                 inputRef={inputRefs.current[i]}
                 onFocus={() => setFocusedIdx(i)}
-                onChangeText={(text) => handleChange(text, i)}
+                onChange={(text) => handleChange(text, i)}
                 onKeyPress={handleKeyPress}
               />
             ))}
           </Animated.View>
 
-          {/* ── Error ── */}
-          {error ? (
-            <Text style={styles.errorText}>{error}</Text>
-          ) : null}
+          {/* ── Error / Success ── */}
+          {error
+            ? <Text style={styles.errorText}>⚠️ {error}</Text>
+            : success
+            ? <Text style={styles.successText}>✓ Verified! Redirecting...</Text>
+            : <Text style={styles.hintText}>Enter the 4-digit code sent via SMS</Text>
+          }
 
-          {/* ── Spacer ── */}
           <View style={styles.spacer} />
 
           {/* ── Footer ── */}
           <View style={styles.footer}>
-            {/* Resend countdown */}
-            <TouchableOpacity
-              onPress={handleResend}
-              disabled={!canResend}
-              activeOpacity={0.7}
-            >
+            <TouchableOpacity onPress={handleResend} disabled={!canResend} activeOpacity={0.7}>
               <Text style={[styles.resendText, canResend && styles.resendActive]}>
                 {canResend
-                  ? 'Resend OTP'
-                  : `Resend OTP in ${countdown} sec(s)`}
+                  ? '🔁 Resend OTP'
+                  : `Resend OTP in ${countdown}s`
+                }
               </Text>
             </TouchableOpacity>
 
-            {/* Verify button */}
             <Animated.View style={{ opacity: btnOpacity }}>
               <TouchableOpacity
-                style={[styles.button, !isComplete && styles.buttonDisabled]}
+                style={[styles.btn, (!isComplete || success) && styles.btnDisabled]}
                 onPress={() => handleVerify()}
                 activeOpacity={0.85}
-                disabled={loading || !isComplete}
+                disabled={loading || !isComplete || success}
                 accessibilityRole="button"
                 accessibilityLabel="Verify OTP"
               >
-                {loading ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
-                ) : (
-                  <Text style={styles.buttonText}>Verify</Text>
-                )}
+                {loading
+                  ? <ActivityIndicator color={C.navy} size="small" />
+                  : success
+                  ? <Text style={styles.btnText}>✓ Verified</Text>
+                  : <>
+                      <Text style={[styles.btnText, !isComplete && styles.btnTextDim]}>
+                        Verify OTP
+                      </Text>
+                      {isComplete && <Text style={styles.btnArrow}>→</Text>}
+                    </>
+                }
               </TouchableOpacity>
             </Animated.View>
           </View>
@@ -330,131 +376,78 @@ export default function OtpVerifyScreen({ navigation, route }: Props) {
   );
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#FFFFFF' },
-  flex: { flex: 1 },
+  safe:      { flex: 1, backgroundColor: C.navy },
+  flex:      { flex: 1 },
+  container: { flex: 1, paddingHorizontal: 24, paddingTop: 16, paddingBottom: 16 },
 
-  container: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 28,
-    paddingBottom: 16,
+  ring1: {
+    position: 'absolute', width: 380, height: 380, borderRadius: 190,
+    borderWidth: 1, borderColor: 'rgba(245,158,11,0.07)',
+    top: -160, right: -140,
   },
-
-  // Header
-  eyebrow: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: BLUE,
-    letterSpacing: 0.4,
-    marginBottom: 8,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'sans-serif-medium',
-  },
-  title: {
-    fontSize: 30,
-    fontWeight: '700',
-    color: '#111827',
-    lineHeight: 38,
-    letterSpacing: -0.5,
-    marginBottom: 10,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'sans-serif-condensed',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'sans-serif',
-    lineHeight: 20,
-  },
-  phoneLink: {
-    color: BLUE,
-    fontWeight: '600',
-    textDecorationLine: 'underline',
+  ring2: {
+    position: 'absolute', width: 240, height: 240, borderRadius: 120,
+    borderWidth: 1, borderColor: 'rgba(16,185,129,0.06)',
+    bottom: 60, left: -80,
   },
 
-  // OTP boxes row
+  backBtn: {
+    width: 38, height: 38, borderRadius: 11,
+    backgroundColor: C.navyMid,
+    borderWidth: 1, borderColor: C.navyLight,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 24,
+  },
+  backIcon: { fontSize: 17, color: C.muted },
+
+  header:         { marginBottom: 6 },
+  eyebrow:        { fontSize: 11, fontWeight: '700', color: C.gold, letterSpacing: 1.2, marginBottom: 10 },
+  title:          { fontSize: 30, fontWeight: '800', color: C.white, letterSpacing: -0.6, marginBottom: 10 },
+  subtitle:       { fontSize: 14, color: C.muted, lineHeight: 20 },
+  phoneHighlight: { color: C.white, fontWeight: '700' },
+  editHint:       { color: C.gold, fontSize: 13, fontWeight: '600' },
+
   otpRow: {
-    flexDirection: 'row',
-    gap: 14,
-    marginTop: 32,
+    flexDirection: 'row', gap: 12, marginTop: 32, marginBottom: 12,
   },
-  otpBox: {
-    flex: 1,
-    height: 64,
-    borderRadius: 16,
-    borderWidth: 2,
-    justifyContent: 'center',
-    alignItems: 'center',
-    // Shadow
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 2,
+  boxWrap: {
+    flex: 1, height: 68, borderRadius: 18, borderWidth: 2,
+    alignItems: 'center', justifyContent: 'center',
   },
-  otpInput: {
-    width: '100%',
-    height: '100%',
-    fontSize: 26,
-    fontWeight: '700',
-    color: '#111827',
-    textAlign: 'center',
-    padding: 0,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Display' : 'sans-serif-condensed',
+  boxFocusShadow: {
+    shadowColor: C.gold,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  boxInput: {
+    width: '100%', height: '100%',
+    fontSize: 28, fontWeight: '800', color: C.white,
+    textAlign: 'center', padding: 0,
   },
 
-  // Error
-  errorText: {
-    marginTop: 10,
-    marginLeft: 2,
-    fontSize: 12.5,
-    color: ERROR,
-    fontWeight: '500',
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'sans-serif',
-  },
+  errorText:   { marginTop: 6, fontSize: 13, color: C.error,   fontWeight: '600' },
+  successText: { marginTop: 6, fontSize: 13, color: C.success, fontWeight: '700' },
+  hintText:    { marginTop: 6, fontSize: 12, color: C.mutedDk },
 
-  header: { marginBottom: 4 },
   spacer: { flex: 1 },
 
-  // Footer
-  footer: { gap: 16 },
-  resendText: {
-    textAlign: 'left',
-    fontSize: 14,
-    color: '#6B7280',
-    fontWeight: '500',
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'sans-serif',
-  },
-  resendActive: {
-    color: BLUE,
-    fontWeight: '700',
-    textDecorationLine: 'underline',
-  },
+  footer:      { gap: 14 },
+  resendText:  { fontSize: 14, color: C.mutedDk, fontWeight: '500', textAlign: 'center' },
+  resendActive:{ color: C.gold, fontWeight: '700', textDecorationLine: 'underline' },
 
-  // Button
-  button: {
-    backgroundColor: BLUE,
-    borderRadius: 14,
-    height: 52,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: BLUE,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 6,
+  btn: {
+    backgroundColor: C.gold, borderRadius: 14, height: 54,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    shadowColor: C.gold, shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4, shadowRadius: 12, elevation: 8,
   },
-  buttonDisabled: {
-    backgroundColor: BLUE_LIGHT,
-    shadowOpacity: 0.1,
-    elevation: 2,
-  },
-  buttonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: 0.3,
-    fontFamily: Platform.OS === 'ios' ? 'SF Pro Text' : 'sans-serif-medium',
-  },
+  btnDisabled:  { backgroundColor: '#3A2E0F', shadowOpacity: 0.1, elevation: 2 },
+  btnText:      { fontSize: 16, fontWeight: '800', color: C.navy, letterSpacing: 0.3 },
+  btnTextDim:   { color: C.mutedDk },
+  btnArrow:     { fontSize: 18, color: C.navy, fontWeight: '800' },
 });
