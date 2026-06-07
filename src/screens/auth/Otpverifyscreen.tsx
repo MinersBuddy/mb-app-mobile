@@ -1,9 +1,12 @@
 /**
  * OtpVerifyScreen.tsx
  * 4-digit OTP entry — auto-submit on last digit
- * SUCCESS hone ke baad → Register screen (MainTabs nahi!)
+ * SUCCESS hone ke baad → Register screen
  *
  * Flow: MobileVerify → OtpVerify → Register → MainTabs
+ *
+ * UPDATED: onVerifyOtp prop calls Firebase confirmation.confirm(otp)
+ * AppNavigator se confirmation inject hota hai
  */
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -32,33 +35,37 @@ type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'OtpVerify'>;
   route:      RouteProp<RootStackParamList, 'OtpVerify'>;
   /**
-   * Tumhara actual OTP verify function — Firebase ya backend
-   * undefined hone par mock delay use hoga (dev mode)
+   * AppNavigator se inject karo — Firebase confirmation.confirm(otp) ka wrapper
+   * Undefined hone par error throw hoga (no more silent mock!)
    */
   onVerifyOtp?: (phoneE164: string, otp: string) => Promise<void>;
+  /**
+   * Resend ke liye — phir se signInWithPhoneNumber call karo
+   */
+  onResendOtp?: (phoneE164: string) => Promise<void>;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const OTP_LEN        = 4;
-const RESEND_SECONDS = 30;
+const OTP_LEN        = 6; // Firebase default 6-digit OTP
+const RESEND_SECONDS = 60;
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 
 const C = {
-  navy:      '#0F1923',
-  navyMid:   '#1A2B3C',
-  navyLight: '#243447',
-  gold:      '#F59E0B',
-  goldDim:   'rgba(245,158,11,0.12)',
-  goldBord:  'rgba(245,158,11,0.35)',
-  white:     '#FFFFFF',
-  muted:     '#94A3B8',
-  mutedDk:   '#64748B',
-  success:   '#10B981',
-  successDim:'rgba(16,185,129,0.15)',
-  error:     '#EF4444',
-  errorDim:  'rgba(239,68,68,0.12)',
+  navy:       '#0F1923',
+  navyMid:    '#1A2B3C',
+  navyLight:  '#243447',
+  gold:       '#F59E0B',
+  goldDim:    'rgba(245,158,11,0.12)',
+  goldBord:   'rgba(245,158,11,0.35)',
+  white:      '#FFFFFF',
+  muted:      '#94A3B8',
+  mutedDk:    '#64748B',
+  success:    '#10B981',
+  successDim: 'rgba(16,185,129,0.15)',
+  error:      '#EF4444',
+  errorDim:   'rgba(239,68,68,0.12)',
 } as const;
 
 // ─── Single OTP Box ───────────────────────────────────────────────────────────
@@ -75,7 +82,10 @@ type BoxProps = {
   onKeyPress: (e: NativeSyntheticEvent<TextInputKeyPressEventData>, i: number) => void;
 };
 
-const OtpBox = ({ value, isFocused, hasError, isSuccess, index, inputRef, onFocus, onChange, onKeyPress }: BoxProps) => {
+const OtpBox = ({
+  value, isFocused, hasError, isSuccess,
+  index, inputRef, onFocus, onChange, onKeyPress,
+}: BoxProps) => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -87,15 +97,15 @@ const OtpBox = ({ value, isFocused, hasError, isSuccess, index, inputRef, onFocu
     }
   }, [value]);
 
-  const borderColor = hasError   ? C.error
-                    : isSuccess  ? C.success
-                    : isFocused  ? C.gold
-                    : value      ? C.goldBord
+  const borderColor = hasError  ? C.error
+                    : isSuccess ? C.success
+                    : isFocused ? C.gold
+                    : value     ? C.goldBord
                     : C.navyLight;
 
-  const bgColor = hasError   ? C.errorDim
-                : isSuccess  ? C.successDim
-                : isFocused  ? C.goldDim
+  const bgColor = hasError  ? C.errorDim
+                : isSuccess ? C.successDim
+                : isFocused ? C.goldDim
                 : C.navyMid;
 
   return (
@@ -129,7 +139,7 @@ const OtpBox = ({ value, isFocused, hasError, isSuccess, index, inputRef, onFocu
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
-export default function OtpVerifyScreen({ navigation, route, onVerifyOtp }: Props) {
+export default function OtpVerifyScreen({ navigation, route, onVerifyOtp, onResendOtp }: Props) {
   const phone = route?.params?.phone ?? '';
 
   const [otp,        setOtp]        = useState<string[]>(Array(OTP_LEN).fill(''));
@@ -183,6 +193,7 @@ export default function OtpVerifyScreen({ navigation, route, onVerifyOtp }: Prop
       inputRefs.current[index + 1]?.current?.focus();
       setFocusedIdx(index + 1);
     } else {
+      // Last digit entered — auto submit
       inputRefs.current[index]?.current?.blur();
       handleVerify(updated.join(''));
     }
@@ -211,7 +222,13 @@ export default function OtpVerifyScreen({ navigation, route, onVerifyOtp }: Prop
   const handleVerify = async (code?: string) => {
     const finalOtp = code ?? otp.join('');
     if (finalOtp.length < OTP_LEN) {
-      setError('Please enter the complete OTP.');
+      setError(`Please enter all ${OTP_LEN} digits.`);
+      shake();
+      return;
+    }
+
+    if (!onVerifyOtp) {
+      setError('Auth not configured. Check AppNavigator.');
       shake();
       return;
     }
@@ -220,24 +237,32 @@ export default function OtpVerifyScreen({ navigation, route, onVerifyOtp }: Prop
     Animated.timing(btnOpacity, { toValue: 0.7, duration: 150, useNativeDriver: true }).start();
 
     try {
-      if (onVerifyOtp) {
-        await onVerifyOtp(`+91${phone}`, finalOtp);
-      } else {
-        // Dev mock — replace with Firebase verifyOtp
-        await new Promise(r => setTimeout(r, 1200));
-      }
+      // REAL Firebase OTP verify — koi bhi random number kaam nahi karega
+      await onVerifyOtp(`+91${phone}`, finalOtp);
 
       setSuccess(true);
 
-      // Brief success flash → then navigate to Register
+      // Brief success flash → Register screen pe navigate karo
       setTimeout(() => {
-        // ✅ Register screen pe jaate hain, phone pass karte hain
         navigation.navigate('Register', { phone });
-      }, 600);
+      }, 700);
 
-    } catch {
-      setError('Invalid OTP. Please try again.');
+    } catch (err: any) {
+      // Firebase specific errors
+      if (
+        err?.code === 'auth/invalid-verification-code' ||
+        err?.code === 'auth/code-expired'
+      ) {
+        setError('Wrong OTP. Please check and try again.');
+      } else if (err?.code === 'auth/too-many-requests') {
+        setError('Too many attempts. Please wait and resend.');
+      } else if (err?.code === 'auth/session-expired') {
+        setError('OTP expired. Please resend.');
+      } else {
+        setError('Verification failed. Please try again.');
+      }
       shake();
+      // Reset boxes on error
       setOtp(Array(OTP_LEN).fill(''));
       setTimeout(() => {
         inputRefs.current[0]?.current?.focus();
@@ -253,11 +278,20 @@ export default function OtpVerifyScreen({ navigation, route, onVerifyOtp }: Prop
 
   const handleResend = async () => {
     if (!canResend) return;
+
     setCanResend(false);
     setCountdown(RESEND_SECONDS);
     setOtp(Array(OTP_LEN).fill(''));
     setError('');
-    // 🔌 Replace with: await authService.sendOtp(`+91${phone}`);
+
+    try {
+      if (onResendOtp) {
+        await onResendOtp(`+91${phone}`);
+      }
+    } catch (err: any) {
+      setError('Failed to resend OTP. Please try again.');
+    }
+
     inputRefs.current[0]?.current?.focus();
     setFocusedIdx(0);
   };
@@ -292,10 +326,7 @@ export default function OtpVerifyScreen({ navigation, route, onVerifyOtp }: Prop
           <View style={styles.header}>
             <Text style={styles.eyebrow}>STEP 2 OF 3 — OTP VERIFICATION</Text>
             <Text style={styles.title}>Enter the code</Text>
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              activeOpacity={0.7}
-            >
+            <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.7}>
               <Text style={styles.subtitle}>
                 Sent to{' '}
                 <Text style={styles.phoneHighlight}>+91 {phone}</Text>
@@ -325,19 +356,25 @@ export default function OtpVerifyScreen({ navigation, route, onVerifyOtp }: Prop
             ))}
           </Animated.View>
 
-          {/* ── Error / Success ── */}
+          {/* ── Status text ── */}
           {error
             ? <Text style={styles.errorText}>⚠️ {error}</Text>
             : success
             ? <Text style={styles.successText}>✓ Verified! Redirecting...</Text>
-            : <Text style={styles.hintText}>Enter the 4-digit code sent via SMS</Text>
+            : <Text style={styles.hintText}>
+                Enter the {OTP_LEN}-digit code sent via SMS
+              </Text>
           }
 
           <View style={styles.spacer} />
 
           {/* ── Footer ── */}
           <View style={styles.footer}>
-            <TouchableOpacity onPress={handleResend} disabled={!canResend} activeOpacity={0.7}>
+            <TouchableOpacity
+              onPress={handleResend}
+              disabled={!canResend}
+              activeOpacity={0.7}
+            >
               <Text style={[styles.resendText, canResend && styles.resendActive]}>
                 {canResend
                   ? '🔁 Resend OTP'
@@ -411,11 +448,18 @@ const styles = StyleSheet.create({
   editHint:       { color: C.gold, fontSize: 13, fontWeight: '600' },
 
   otpRow: {
-    flexDirection: 'row', gap: 12, marginTop: 32, marginBottom: 12,
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 32,
+    marginBottom: 12,
   },
   boxWrap: {
-    flex: 1, height: 68, borderRadius: 18, borderWidth: 2,
-    alignItems: 'center', justifyContent: 'center',
+    flex: 1,
+    height: 62,
+    borderRadius: 14,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   boxFocusShadow: {
     shadowColor: C.gold,
@@ -426,7 +470,7 @@ const styles = StyleSheet.create({
   },
   boxInput: {
     width: '100%', height: '100%',
-    fontSize: 28, fontWeight: '800', color: C.white,
+    fontSize: 24, fontWeight: '800', color: C.white,
     textAlign: 'center', padding: 0,
   },
 
@@ -436,9 +480,9 @@ const styles = StyleSheet.create({
 
   spacer: { flex: 1 },
 
-  footer:      { gap: 14 },
-  resendText:  { fontSize: 14, color: C.mutedDk, fontWeight: '500', textAlign: 'center' },
-  resendActive:{ color: C.gold, fontWeight: '700', textDecorationLine: 'underline' },
+  footer:       { gap: 14 },
+  resendText:   { fontSize: 14, color: C.mutedDk, fontWeight: '500', textAlign: 'center' },
+  resendActive: { color: C.gold, fontWeight: '700', textDecorationLine: 'underline' },
 
   btn: {
     backgroundColor: C.gold, borderRadius: 14, height: 54,
