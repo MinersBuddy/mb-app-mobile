@@ -78,7 +78,7 @@ export default function LoginScreen({ navigation }: Props) {
       const credential = auth.GoogleAuthProvider.credential(idToken);
       const result = await auth().signInWithCredential(credential);
       const isNew = result.additionalUserInfo?.isNewUser;
-      navigation.replace(isNew ? 'MobileVerify' : 'MobileVerify');
+      navigation.replace(isNew ? 'Register' : 'MainTabs');
     } catch (error: any) {
       if (error.code === statusCodes.SIGN_IN_CANCELLED) return;
       if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
