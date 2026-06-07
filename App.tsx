@@ -1,6 +1,8 @@
 import React, { useEffect } from 'react';
 import { StatusBar } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { QueryClientProvider } from '@tanstack/react-query';  // ← ADD
+import { queryClient } from './src/lib/queryClient';           // ← ADD
 import AppNavigator from './src/navigation/AppNavigator';
 import {
   requestNotificationPermission,
@@ -11,26 +13,25 @@ import {
 export default function App() {
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
-
     const initNotifications = async () => {
       const hasPermission = await requestNotificationPermission();
       if (hasPermission) {
         await getFCMToken();
-        unsubscribe = setupNotificationListeners(); //  bahar variable mein store karo
+        unsubscribe = setupNotificationListeners();
       }
     };
-
     initNotifications();
-
     return () => {
-      unsubscribe?.(); // sync cleanup - sahi tarika
+      unsubscribe?.();
     };
   }, []);
 
   return (
-    <SafeAreaProvider>
-      <StatusBar barStyle="light-content" backgroundColor="#0F1923" />
-      <AppNavigator />
-    </SafeAreaProvider>
+    <QueryClientProvider client={queryClient}>  {/* ← WRAP */}
+      <SafeAreaProvider>
+        <StatusBar barStyle="light-content" backgroundColor="#0F1923" />
+        <AppNavigator />
+      </SafeAreaProvider>
+    </QueryClientProvider>                       {/* ← CLOSE */}
   );
 }
