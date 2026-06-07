@@ -12,12 +12,13 @@ import RegisterScreen      from '../screens/auth/RegisterScreen';
 import MobileVerifyScreen  from '../screens/auth/MobileVerifyScreen';
 import OtpVerifyScreen     from '../screens/auth/Otpverifyscreen';
 import FirstAidCenter      from '../screens/Home/FirstAidCenter';
-import ChapterListScreen   from '../components/ChapterListScreen';    // ✅ added
-import QuizScreen, { QuizQuestion }                from '../components/QuizScreen'; // ✅ added
+import ChapterListScreen   from '../components/ChapterListScreen';
+import QuizScreen, { QuizQuestion } from '../components/QuizScreen';
 import MainTabNavigator    from './MainTabNavigator';
-import AnnouncementScreen from '../screens/Home/AnnouncementScreen';
+import AnnouncementScreen  from '../screens/Home/AnnouncementScreen';
+
 // ─── Data type imports ─────────────────────────────────────────────────────────
-import { CourseConfig, Chapter } from '../data/courseConfig'; // ✅ added
+import { CourseConfig, Chapter } from '../data/courseConfig';
 
 // ─── Route param list ──────────────────────────────────────────────────────────
 export type RootStackParamList = {
@@ -25,20 +26,23 @@ export type RootStackParamList = {
   Onboarding:   undefined;
   Login:        undefined;
   MobileVerify: undefined;
-  Register:     undefined;
-  OtpVerify:    { phone?: string }; 
+
+  // phone string — OTP verify ke baad Register mein auto-fill hoga
+  OtpVerify:    { phone: string };
+  Register:     { phone: string };
+
   MainTabs:  undefined;
   FirstAid:  undefined;
-  Courses: undefined;
-  Tests:   undefined;
+  Courses:   undefined;
+  Tests:     undefined;
   Announcements: undefined;
 
-  // Course screens — ek screen, sab courses handle karta hai
+  // Course screens
   ChapterList: {
-    course?: CourseConfig;
-    chapter?: Chapter;
+    course?:      CourseConfig;
+    chapter?:     Chapter;
     courseColor?: string;
-    courseName?: string; // header mein naam dikhane ke liye
+    courseName?:  string;
   };
 
   QuizScreen: {
@@ -47,7 +51,6 @@ export type RootStackParamList = {
     courseIcon?: string;
     questions:   QuizQuestion[];
   };
-
 };
 
 // ─── Typed navigation prop ─────────────────────────────────────────────────────
@@ -56,7 +59,6 @@ export type RootNavProp = NativeStackNavigationProp<RootStackParamList>;
 // ─── Stack instance ────────────────────────────────────────────────────────────
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-// Placeholder screens
 const CoursesScreen = () => null;
 const TestsScreen   = () => null;
 
@@ -76,8 +78,8 @@ export default function AppNavigator() {
         <Stack.Screen name="Onboarding"   component={OnboardingScreen}   />
         <Stack.Screen name="Login"        component={LoginScreen}        />
         <Stack.Screen name="MobileVerify" component={MobileVerifyScreen} />
-        <Stack.Screen name="Register"     component={RegisterScreen}     />
         <Stack.Screen name="OtpVerify"    component={OtpVerifyScreen}    />
+        <Stack.Screen name="Register"     component={RegisterScreen}     />
 
         {/* Main app */}
         <Stack.Screen
@@ -86,10 +88,11 @@ export default function AppNavigator() {
           options={{ animation: 'fade' }}
         />
 
-        {/* Course screens — ek component, sab courses */}
-        <Stack.Screen name="ChapterList"    component={ChapterListScreen}    />
-        <Stack.Screen name="QuizScreen"     component={QuizScreen}           />
+        {/* Course screens */}
+        <Stack.Screen name="ChapterList"   component={ChapterListScreen}  />
+        <Stack.Screen name="QuizScreen"    component={QuizScreen}         />
         <Stack.Screen name="Announcements" component={AnnouncementScreen} />
+
         {/* Other screens */}
         <Stack.Screen name="FirstAid" component={FirstAidCenter} />
         <Stack.Screen name="Courses"  component={CoursesScreen}  />
