@@ -4,6 +4,9 @@
  * Country code +91 fixed hai, change nahi ho sakta (India only app)
  *
  * Flow: GoogleLogin → MobileVerify → OtpVerify → Register → MainTabs
+ *
+ * UPDATED: onSendOtp prop now calls Firebase signInWithPhoneNumber
+ * Parent (AppNavigator) se confirmation result inject hota hai via prop
  */
 
 import React, { useState, useRef } from 'react';
@@ -28,8 +31,8 @@ import { RootStackParamList } from '../../navigation/AppNavigator';
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'MobileVerify'>;
   /**
-   * Parent se inject karo — Firebase / your backend ka OTP send call
-   * Agar undefined hai toh mock delay use hoga (dev mode)
+   * AppNavigator se inject karo — Firebase signInWithPhoneNumber ka wrapper
+   * Ye call hoga jab user "Send OTP" press kare
    */
   onSendOtp?: (phoneE164: string) => Promise<void>;
 };
@@ -58,10 +61,10 @@ export default function MobileVerifyScreen({ navigation, onSendOtp }: Props) {
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState('');
 
-  const shakeAnim    = useRef(new Animated.Value(0)).current;
-  const inputScale   = useRef(new Animated.Value(1)).current;
-  const btnOpacity   = useRef(new Animated.Value(1)).current;
-  const glowOpacity  = useRef(new Animated.Value(0)).current;
+  const shakeAnim   = useRef(new Animated.Value(0)).current;
+  const inputScale  = useRef(new Animated.Value(1)).current;
+  const btnOpacity  = useRef(new Animated.Value(1)).current;
+  const glowOpacity = useRef(new Animated.Value(0)).current;
 
   // Valid Indian mobile: starts with 6-9, exactly 10 digits
   const isValid = /^[6-9]\d{9}$/.test(mobile);
@@ -106,20 +109,35 @@ export default function MobileVerifyScreen({ navigation, onSendOtp }: Props) {
       return;
     }
 
+    if (!onSendOtp) {
+      // onSendOtp prop nahi aaya — AppNavigator mein wire karo
+      setError('Auth not configured. Check AppNavigator.');
+      shake();
+      return;
+    }
+
     setError('');
     setLoading(true);
     Animated.timing(btnOpacity, { toValue: 0.7, duration: 150, useNativeDriver: true }).start();
 
     try {
-      if (onSendOtp) {
-        await onSendOtp(`+91${mobile}`);
-      } else {
-        // Dev mock — replace with Firebase sendOtp
-        await new Promise(r => setTimeout(r, 1000));
-      }
+      // Firebase signInWithPhoneNumber call — AppNavigator handle karta hai
+      await onSendOtp(`+91${mobile}`);
+
+      // Success — OtpVerify screen pe navigate karo, phone number pass karo
       navigation.navigate('OtpVerify', { phone: mobile });
-    } catch {
-      setError('Failed to send OTP. Please try again.');
+
+    } catch (err: any) {
+      // Firebase specific errors handle karo
+      if (err?.code === 'auth/too-many-requests') {
+        setError('Too many attempts. Please try again later.');
+      } else if (err?.code === 'auth/invalid-phone-number') {
+        setError('Invalid phone number format.');
+      } else if (err?.code === 'auth/quota-exceeded') {
+        setError('SMS quota exceeded. Try again tomorrow.');
+      } else {
+        setError('Failed to send OTP. Please try again.');
+      }
       shake();
     } finally {
       setLoading(false);
@@ -263,7 +281,6 @@ const s = StyleSheet.create({
   flex:      { flex: 1 },
   container: { flex: 1, paddingHorizontal: 24, paddingTop: 20, paddingBottom: 16 },
 
-  // Background decorative rings
   ring1: {
     position: 'absolute', width: 380, height: 380, borderRadius: 190,
     borderWidth: 1, borderColor: 'rgba(245,158,11,0.07)',
@@ -275,7 +292,6 @@ const s = StyleSheet.create({
     bottom: 80, left: -100, pointerEvents: 'none',
   },
 
-  // Header
   header: { marginBottom: 32 },
   iconWrap: {
     width: 52, height: 52, borderRadius: 16,
@@ -297,10 +313,8 @@ const s = StyleSheet.create({
     fontSize: 14, color: C.muted, lineHeight: 21, fontWeight: '400',
   },
 
-  // Input
   inputOuter: {
     borderRadius: 16, marginBottom: 10,
-    // Gold border using wrapper trick (shadow as glow)
     borderWidth: 1.5, borderColor: C.navyLight,
     overflow: 'hidden',
   },
@@ -342,7 +356,6 @@ const s = StyleSheet.create({
   errorText: { fontSize: 12, color: C.error, fontWeight: '600', marginLeft: 4, marginBottom: 4 },
   hintText:  { fontSize: 12, color: C.mutedDk, marginLeft: 4, marginBottom: 4 },
 
-  // Digit progress dots
   progressRow: { flexDirection: 'row', gap: 6, marginTop: 12, paddingLeft: 2 },
   dot: {
     flex: 1, height: 3, borderRadius: 2,
@@ -353,14 +366,12 @@ const s = StyleSheet.create({
 
   spacer: { flex: 1 },
 
-  // Footer
   footer:     { gap: 12 },
   footerNote: {
     textAlign: 'center', fontSize: 11.5, color: C.mutedDk,
     lineHeight: 17, fontWeight: '400',
   },
 
-  // Button
   btn: {
     backgroundColor: C.gold, borderRadius: 14, height: 54,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
