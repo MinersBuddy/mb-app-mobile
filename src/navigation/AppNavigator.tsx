@@ -1,22 +1,19 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import {
   createNativeStackNavigator,
   NativeStackNavigationProp,
 } from '@react-navigation/native-stack';
-import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
 
 // ─── Screen imports ────────────────────────────────────────────────────────────
-import OnboardingScreen    from '../screens/auth/OnboardingScreen';
-import LoginScreen         from '../screens/auth/LoginScreen';
-import RegisterScreen      from '../screens/auth/RegisterScreen';
-import MobileVerifyScreen  from '../screens/auth/MobileVerifyScreen';
-import OtpVerifyScreen     from '../screens/auth/Otpverifyscreen';
-import FirstAidCenter      from '../screens/Home/FirstAidCenter';
-import ChapterListScreen   from '../components/ChapterListScreen';
+import OnboardingScreen   from '../screens/auth/OnboardingScreen';
+import LoginScreen        from '../screens/auth/LoginScreen';
+import RegisterScreen     from '../screens/auth/RegisterScreen';
+import FirstAidCenter     from '../screens/Home/FirstAidCenter';
+import ChapterListScreen  from '../components/ChapterListScreen';
 import QuizScreen, { QuizQuestion } from '../components/QuizScreen';
-import MainTabNavigator    from './MainTabNavigator';
-import AnnouncementScreen  from '../screens/Home/AnnouncementScreen';
+import MainTabNavigator   from './MainTabNavigator';
+import AnnouncementScreen from '../screens/Home/AnnouncementScreen';
 
 // ─── Data type imports ─────────────────────────────────────────────────────────
 import { CourseConfig, Chapter } from '../data/courseConfig';
@@ -25,9 +22,7 @@ import { CourseConfig, Chapter } from '../data/courseConfig';
 export type RootStackParamList = {
   Onboarding:    undefined;
   Login:         undefined;
-  MobileVerify:  undefined;
-  OtpVerify:     { phone: string };
-  Register:      { phone: string };
+  Register:      undefined;   // ← phone param nahi chahiye ab
   MainTabs:      undefined;
   FirstAid:      undefined;
   Courses:       undefined;
@@ -56,30 +51,6 @@ const TestsScreen   = () => null;
 
 // ─── Navigator ─────────────────────────────────────────────────────────────────
 export default function AppNavigator() {
-
-  // Firebase confirmation result — MobileVerify set karta hai, OtpVerify use karta hai
-  const [confirmation, setConfirmation] =
-    useState<FirebaseAuthTypes.ConfirmationResult | null>(null);
-
-  // ── Firebase helpers ─────────────────────────────────────────────────────
-
-  const sendOtp = async (phoneE164: string): Promise<void> => {
-    const result = await auth().signInWithPhoneNumber(phoneE164);
-    setConfirmation(result);
-  };
-
-  const verifyOtp = async (_phone: string, otp: string): Promise<void> => {
-    if (!confirmation) throw new Error('No confirmation. Please resend OTP.');
-    await confirmation.confirm(otp);
-  };
-
-  const resendOtp = async (phoneE164: string): Promise<void> => {
-    const result = await auth().signInWithPhoneNumber(phoneE164);
-    setConfirmation(result);
-  };
-
-  // ─────────────────────────────────────────────────────────────────────────
-
   return (
     <NavigationContainer>
       <Stack.Navigator
@@ -93,29 +64,7 @@ export default function AppNavigator() {
         {/* Auth */}
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
         <Stack.Screen name="Login"      component={LoginScreen}      />
-
-        {/* MobileVerify — sendOtp inject */}
-        <Stack.Screen name="MobileVerify">
-          {(props) => (
-            <MobileVerifyScreen
-              {...props}
-              onSendOtp={sendOtp}
-            />
-          )}
-        </Stack.Screen>
-
-        {/* OtpVerify — verifyOtp + resendOtp inject */}
-        <Stack.Screen name="OtpVerify">
-          {(props) => (
-            <OtpVerifyScreen
-              {...props}
-              onVerifyOtp={verifyOtp}
-              onResendOtp={resendOtp}
-            />
-          )}
-        </Stack.Screen>
-
-        <Stack.Screen name="Register" component={RegisterScreen} />
+        <Stack.Screen name="Register"   component={RegisterScreen}   />
 
         {/* Main app */}
         <Stack.Screen
