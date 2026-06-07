@@ -5,6 +5,9 @@ import {
   NativeStackNavigationProp,
 } from '@react-navigation/native-stack';
 
+import { useState } from 'react';
+import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
+
 // ─── Screen imports ────────────────────────────────────────────────────────────
 import OnboardingScreen    from '../screens/auth/OnboardingScreen';
 import LoginScreen         from '../screens/auth/LoginScreen';
@@ -64,6 +67,10 @@ const TestsScreen   = () => null;
 
 // ─── Navigator ─────────────────────────────────────────────────────────────────
 export default function AppNavigator() {
+  
+  const [confirmation, setConfirmation] = 
+    useState<FirebaseAuthTypes.ConfirmationResult | null>(null);
+  
   return (
     <NavigationContainer>
       <Stack.Navigator
