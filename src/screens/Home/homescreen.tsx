@@ -1,187 +1,39 @@
+// src/screens/Home/HomeScreen.tsx
 import React, { useRef, useState, useEffect } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  Dimensions,
-  TouchableOpacity,
-  ScrollView,
-  StatusBar,
-  Platform,
-  Animated,
-  FlatList,
-  ViewToken,
+  View, Text, StyleSheet, Dimensions, TouchableOpacity,
+  ScrollView, StatusBar, Platform, ActivityIndicator,
+  FlatList, ViewToken,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { MINING_MATE } from '../../data/courseConfig';
 import {
-  BellIcon,
-  HeartPulse,
-  ChevronRight,
-  BookOpen,
-  ClipboardList,
-  FileText,
-  Zap,
-  TrendingUp,
-  Clock,
-  CheckCircle,
-  Circle,
-  PlayCircle,
-  Award,
-  Target,
-  BarChart2,
+  BellIcon, HeartPulse, ChevronRight,
+  BookOpen, ClipboardList, FileText,
+  Zap, Target, Award,
 } from 'lucide-react-native';
 
-const { width: SW, height: SH } = Dimensions.get('window');
+import { useExamData, ExamData, BannerSlide, PYQEntry, QuickPracticeItem } from '../../hooks/useExamData';
+
+const { width: SW } = Dimensions.get('window');
 
 // ─── Design System ────────────────────────────────────────────────────────────
 const C = {
-  // Backgrounds
-  bg:       '#0D1117',
-  bgCard:   '#1E2F42',
-  bgRaised: '#1C2128',
-  bgBorder: '#30363D',
-
-  // Brand
-  gold:      '#F59E0B',
-  goldDim:   '#92600A',
-  goldGlow:  '#F59E0B18',
-  white:     '#F0F6FC',
-  whiteD:    '#C9D1D9',
-
-  // Semantic
-  success:  '#3FB950',
-  teal:     '#0D9488',
-  purple:   '#8B5CF6',
-  red:      '#F85149',
-  orange:   '#F0883E',
-
-  // Text
-  textPrimary:   '#F0F6FC',
-  textSecondary: '#8B949E',
-  textMuted:     '#484F58',
+  bg: '#0D1117', bgCard: '#1E2F42', bgRaised: '#1C2128', bgBorder: '#30363D',
+  gold: '#F59E0B', goldDim: '#92600A', goldGlow: '#F59E0B18',
+  white: '#F0F6FC', whiteD: '#C9D1D9',
+  success: '#3FB950', teal: '#0D9488', purple: '#8B5CF6',
+  red: '#F85149', orange: '#F0883E',
+  textPrimary: '#F0F6FC', textSecondary: '#8B949E', textMuted: '#484F58',
 } as const;
 
-// ─── Scalable Exam Config ─────────────────────────────────────────────────────
-// To add Overman/Sirdar/Manager: create a new ExamConfig object, same shape.
-
-type ChapterStatus = 'completed' | 'in_progress' | 'locked';
-
-type ExamChapter = {
-  id: string;
-  number: number;
-  title: string;
-  totalQs: number;
-  doneQs: number;
-  status: ChapterStatus;
+// ─── Icon Map ─────────────────────────────────────────────────────────────────
+// JSON mein iconType string hota hai — yahan map karke real component milta hai
+const ICON_MAP: Record<string, React.ComponentType<{ size?: number; color?: string }>> = {
+  Zap, BookOpen, ClipboardList, FileText, Target, Award,
 };
-
-type PYQEntry = {
-  id: string;
-  year: string;
-  topic: string;
-  qCount: number;
-  icon: React.ComponentType<{ size?: number; color?: string }>;
-  iconColor: string;
-};
-
-type BannerSlide = {
-  id: string;
-  tag: string;
-  headline: string;
-  sub: string;
-  accentColor: string;
-  bgColor: string;
-};
-
-type ExamConfig = {
-  id: string;
-  name: string;
-  regulation: string;
-  badge: string;
-  totalQuestions: number;
-  totalChapters: number;
-  examDate: string;        // ISO string
-  overallProgress: number; // 0–100
-  currentChapter: ExamChapter;
-  studyHours: number;
-  testsTaken: number;
-  accuracy: number;
-  chapters: ExamChapter[];
-  pyqList: PYQEntry[];
-  bannerSlides: BannerSlide[];
-};
-
-// Mining Mate content — swap this object for other exams
-const MINING_MATE_CONFIG: ExamConfig = {
-  id:             'mining_mate',
-  name:           'Mining Mate',
-  regulation:     'CMR 2017',
-  badge:          'OPENCAST',
-  totalQuestions: 250,
-  totalChapters:  15,
-  examDate:       '2026-06-10T00:00:00',
-  overallProgress: 42,
-  studyHours:     50,
-  testsTaken:     11,
-  accuracy:       87,
-
-  currentChapter: {
-    id: 'ch5', number: 5,
-    title: 'Ventilation & Air Quality',
-    totalQs: 18, doneQs: 7,
-    status: 'in_progress',
-  },
-
-  chapters: [
-    { id:'ch1', number:1, title:'General Provisions',       totalQs:14, doneQs:14, status:'completed'   },
-    { id:'ch2', number:2, title:'Management & Supervision', totalQs:16, doneQs:16, status:'completed'   },
-    { id:'ch3', number:3, title:'Mine Surveying',           totalQs:12, doneQs:12, status:'completed'   },
-    { id:'ch4', number:4, title:'Explosives & Blasting',    totalQs:20, doneQs:14, status:'completed'   },
-    { id:'ch5', number:5, title:'Ventilation & Air Quality',totalQs:18, doneQs:7,  status:'in_progress' },
-    { id:'ch6', number:6, title:'Haulage & Transport',      totalQs:15, doneQs:0,  status:'locked'      },
-    { id:'ch7', number:7, title:'Safety & First Aid',       totalQs:22, doneQs:0,  status:'locked'      },
-  ],
-
-  pyqList: [
-    { id:'pyq1', year:'2024', topic:'Explosives & Blasting', qCount:25, icon:Zap,          iconColor: C.orange },
-    { id:'pyq2', year:'2023', topic:'Mine Regulation 1961',  qCount:30, icon:BookOpen,      iconColor: C.teal   },
-    { id:'pyq3', year:'2022', topic:'CMR Full Paper',        qCount:40, icon:ClipboardList, iconColor: C.purple },
-    { id:'pyq4', year:'2021', topic:'Ventilation Focus',     qCount:22, icon:Award,         iconColor: C.gold   },
-  ],
-
-  bannerSlides: [
-    {
-      id:'b1',
-      tag:'FREE ACCESS',
-      headline:'Mining Mate\nComplete Course',
-      sub:'CMR 2017 • 15 Chapters • 250+ Questions',
-      accentColor: C.gold,
-      bgColor: '#1A1500',
-    },
-    {
-      id:'b2',
-      tag:'NEW BATCH',
-      headline:'PYQ 2024\nNow Available',
-      sub:'25 Questions • Fully Explained Solutions',
-      accentColor: C.teal,
-      bgColor: '#001A19',
-    },
-    {
-      id:'b3',
-      tag:'EXAM ALERT',
-      headline:'21 Days\nLeft to Prep',
-      sub:'Stay consistent • 30 Questions/Day Target',
-      accentColor: C.orange,
-      bgColor: '#1A0D00',
-    },
-  ],
-};
-
-// Active config — later: load from AsyncStorage based on user's exam selection
-const EXAM = MINING_MATE_CONFIG;
 
 // ─── Section Header ───────────────────────────────────────────────────────────
 const SectionHeader = ({ title, onSeeAll }: { title: string; onSeeAll?: () => void }) => (
@@ -208,23 +60,53 @@ const ss = StyleSheet.create({
   seeAllText:{ fontSize:12, color:C.gold, fontWeight:'600' },
 });
 
-// ─── Promotional Banner Slider ────────────────────────────────────────────────
-const BannerSlider = () => {
-  const realSlides = EXAM.bannerSlides;
-  const realCount  = realSlides.length;
+// ─── Skeleton Loader ──────────────────────────────────────────────────────────
+// Data load hone tak placeholder dikhata hai
+const SkeletonBox = ({ width, height, style }: { width: number | string; height: number; style?: object }) => (
+  <View style={[{ width: width as number, height, borderRadius: 10, backgroundColor: C.bgCard, opacity: 0.5 }, style]} />
+);
 
-  // First slide clone at end → [s1, s2, s3, s1*]
-  const slides = [...realSlides, realSlides[0]];
+const HomeSkeleton = () => (
+  <View style={{ paddingHorizontal: 16, gap: 16, marginTop: 12 }}>
+    <SkeletonBox width="100%" height={110} />
+    <SkeletonBox width="100%" height={72} />
+    <View style={{ flexDirection: 'row', gap: 10 }}>
+      {[1,2,3,4].map(i => <SkeletonBox key={i} width={72} height={80} />)}
+    </View>
+  </View>
+);
+
+// ─── Error View ───────────────────────────────────────────────────────────────
+const ErrorView = ({ onRetry }: { onRetry: () => void }) => (
+  <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 }}>
+    <Text style={{ fontSize: 32 }}>⚠️</Text>
+    <Text style={{ color: C.textPrimary, fontSize: 16, fontWeight: '700' }}>Data load nahi hua</Text>
+    <Text style={{ color: C.textSecondary, fontSize: 13, textAlign: 'center' }}>
+      Internet check karo ya GitHub URL verify karo
+    </Text>
+    <TouchableOpacity
+      onPress={onRetry}
+      style={{ backgroundColor: C.gold, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}
+    >
+      <Text style={{ color: '#0D1117', fontWeight: '800' }}>Retry</Text>
+    </TouchableOpacity>
+  </View>
+);
+
+// ─── Banner Slider ─────────────────────────────────────────────────────────────
+const BannerSlider = ({ slides }: { slides: BannerSlide[] }) => {
+  const realCount = slides.length;
+  const allSlides = [...slides, slides[0]]; // infinite loop trick
 
   const [activeIdx, setActiveIdx] = useState(0);
-  const flatRef   = useRef<FlatList>(null);
-  const timer     = useRef<ReturnType<typeof setInterval> | null>(null);
+  const flatRef    = useRef<FlatList>(null);
+  const timer      = useRef<ReturnType<typeof setInterval> | null>(null);
   const viewConfig = useRef({ viewAreaCoveragePercentThreshold: 50 });
 
   useEffect(() => {
     timer.current = setInterval(() => {
       setActiveIdx(prev => {
-        const next = prev + 1; // goes 0→1→2→3(clone)
+        const next = prev + 1;
         flatRef.current?.scrollToIndex({ index: next, animated: true });
         return next;
       });
@@ -232,7 +114,6 @@ const BannerSlider = () => {
     return () => { if (timer.current) clearInterval(timer.current); };
   }, []);
 
-  // Jab clone (index 3) pe scroll end ho → silently jump to real index 0
   const onMomentumScrollEnd = () => {
     if (activeIdx >= realCount) {
       flatRef.current?.scrollToIndex({ index: 0, animated: false });
@@ -241,19 +122,15 @@ const BannerSlider = () => {
   };
 
   const onViewRef = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
-    if (viewableItems[0]) {
-      const idx = viewableItems[0].index ?? 0;
-      setActiveIdx(idx);
-    }
+    if (viewableItems[0]) setActiveIdx(viewableItems[0].index ?? 0);
   });
 
   return (
     <View style={bss.wrap}>
       <FlatList
         ref={flatRef}
-        data={slides}
-        horizontal
-        pagingEnabled
+        data={allSlides}
+        horizontal pagingEnabled
         showsHorizontalScrollIndicator={false}
         keyExtractor={(item, index) => `${item.id}-${index}`}
         onViewableItemsChanged={onViewRef.current}
@@ -277,14 +154,9 @@ const BannerSlider = () => {
           </View>
         )}
       />
-
-      {/* Dots — sirf real 3 slides ke liye */}
       <View style={bss.dots}>
-        {realSlides.map((_, i) => (
-          <View
-            key={i}
-            style={[bss.dot, (activeIdx % realCount) === i && bss.dotActive]}
-          />
+        {slides.map((_, i) => (
+          <View key={i} style={[bss.dot, (activeIdx % realCount) === i && bss.dotActive]} />
         ))}
       </View>
     </View>
@@ -292,83 +164,29 @@ const BannerSlider = () => {
 };
 
 const bss = StyleSheet.create({
-  wrap:     { marginBottom:20,},
-  slide:    { borderRadius:16, borderWidth:1, borderColor:C.bgBorder, overflow:'hidden', flexDirection:'row', alignItems:'center', minHeight:110, paddingRight:12 },
-  leftBar:  { width:4, alignSelf:'stretch' },
-  content:  { flex:1, padding:16, gap:6 },
-  tag:      { alignSelf:'flex-start', borderWidth:1, borderRadius:6, paddingHorizontal:8, paddingVertical:3, marginBottom:2 },
-  tagText:  { fontSize:9, fontWeight:'800', letterSpacing:1.2 },
-  headline: { fontSize:20, fontWeight:'900', color:C.textPrimary, lineHeight:26, letterSpacing:-0.5 },
-  sub:      { fontSize:11, color:C.textSecondary, fontWeight:'500', lineHeight:16 },
+  wrap:        { marginBottom: 20 },
+  slide:       { borderRadius:16, borderWidth:1, borderColor:C.bgBorder, overflow:'hidden', flexDirection:'row', alignItems:'center', minHeight:110, paddingRight:12 },
+  leftBar:     { width:4, alignSelf:'stretch' },
+  content:     { flex:1, padding:16, gap:6 },
+  tag:         { alignSelf:'flex-start', borderWidth:1, borderRadius:6, paddingHorizontal:8, paddingVertical:3, marginBottom:2 },
+  tagText:     { fontSize:9, fontWeight:'800', letterSpacing:1.2 },
+  headline:    { fontSize:20, fontWeight:'900', color:C.textPrimary, lineHeight:26, letterSpacing:-0.5 },
+  sub:         { fontSize:11, color:C.textSecondary, fontWeight:'500', lineHeight:16 },
   iconCluster: { width:80, alignItems:'center', justifyContent:'center' },
-  iconRing: { width:70, height:70, borderRadius:35, borderWidth:2, alignItems:'center', justifyContent:'center' },
-  dots:     { flexDirection:'row', justifyContent:'center', gap:5, marginTop:10 },
-  dot:      { width:5, height:5, borderRadius:3, backgroundColor:C.bgBorder },
-  dotActive:{ width:18, backgroundColor:C.gold },
-});
-
-// ─── Quick Practice Chips ─────────────────────────────────────────────────────
-const QuickPractice = () => {
-  const chips = [
-    { label:'Quiz',  icon:Zap,      color:C.gold   },
-    { label:'PYQ',   icon:BookOpen, color:C.teal   },
-    { label:'Mock',  icon:Target,   color:C.purple },
-    { label:'Notes', icon:FileText, color:C.orange },
-  ];
-
-    return (
-      <View style={qss.row}>
-        {chips.map(ch => {
-          const Icon = ch.icon;
-          return (
-            <TouchableOpacity
-              key={ch.label}
-              style={qss.chip}
-              activeOpacity={0.8}
-            >
-              <Icon size={22} color={ch.color} />
-              <Text style={qss.label}>{ch.label}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-    );
-};
-
-const qss = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 20,
-  },
-
-  chip: {
-    flex: 1,
-    borderRadius: 14,
-    borderWidth: 1,
-    paddingVertical: 16,
-    alignItems: 'center',
-    gap: 7,
-    backgroundColor: C.bgCard,
-    borderColor: `${C.gold}30`,
-  },
-
-  label: {
-    fontSize: 11,
-    fontWeight: '700',
-    color:  C.textPrimary,
-    letterSpacing: 0.2,
-  },
+  iconRing:    { width:70, height:70, borderRadius:35, borderWidth:2, alignItems:'center', justifyContent:'center' },
+  dots:        { flexDirection:'row', justifyContent:'center', gap:5, marginTop:10 },
+  dot:         { width:5, height:5, borderRadius:3, backgroundColor:C.bgBorder },
+  dotActive:   { width:18, backgroundColor:C.gold },
 });
 
 // ─── Stats Strip ──────────────────────────────────────────────────────────────
-const StatsStrip = () => (
+const StatsStrip = ({ data }: { data: ExamData }) => (
   <View style={stss.wrap}>
     {[
-      { val: '🔥 7',                lbl: 'Day Streak'  },
-      { val: `${EXAM.accuracy}%`,   lbl: 'Accuracy'   },
-      { val: `${EXAM.testsTaken}`,        lbl: 'Test' },
-      { val: `${EXAM.studyHours}h`, lbl: 'Studied'  },
+      { val: `🔥 ${data.streak}`,      lbl: 'Day Streak' },
+      { val: `${data.accuracy}%`,       lbl: 'Accuracy'   },
+      { val: `${data.testsTaken}`,      lbl: 'Tests'      },
+      { val: `${data.studyHours}h`,     lbl: 'Studied'    },
     ].map((s, i, arr) => (
       <React.Fragment key={s.lbl}>
         <View style={stss.item}>
@@ -382,9 +200,7 @@ const StatsStrip = () => (
 );
 
 const stss = StyleSheet.create({
-  wrap: { flexDirection:'row', backgroundColor:C.bgCard, borderRadius:14,
-          borderWidth:1, borderColor:`${C.gold}25`,
-          paddingVertical:14, marginBottom:20 },
+  wrap: { flexDirection:'row', backgroundColor:C.bgCard, borderRadius:14, borderWidth:1, borderColor:`${C.gold}25`, paddingVertical:14, marginBottom:20 },
   item: { flex:1, alignItems:'center', gap:3 },
   val:  { fontSize:18, fontWeight:'900', color:C.textPrimary, letterSpacing:-0.5 },
   lbl:  { fontSize:10, color:C.textSecondary, fontWeight:'600', letterSpacing:0.3 },
@@ -392,39 +208,31 @@ const stss = StyleSheet.create({
 });
 
 // ─── PYQ Cards ────────────────────────────────────────────────────────────────
-const PYQCards = ({ navigation }: {
-  navigation: NativeStackNavigationProp<RootStackParamList>}) => (
-
-  <ScrollView horizontal showsHorizontalScrollIndicator={false} 
+const PYQCards = ({
+  pyqList, navigation
+}: {
+  pyqList: PYQEntry[];
+  navigation: NativeStackNavigationProp<RootStackParamList>;
+}) => (
+  <ScrollView horizontal showsHorizontalScrollIndicator={false}
     contentContainerStyle={{ gap:12, paddingRight:16 }}>
-    {EXAM.pyqList.map(p => {
-      const Icon = p.icon;
+    {pyqList.map(p => {
+      const Icon = ICON_MAP[p.iconType] ?? BookOpen; // fallback icon
       return (
-        <TouchableOpacity 
-        key={p.id} 
-        style={pyss.card} 
-        activeOpacity={0.85} 
-        onPress={() => navigation.navigate('ChapterList', {course: MINING_MATE }) }>
-
+        <TouchableOpacity key={p.id} style={pyss.card} activeOpacity={0.85}
+          onPress={() => navigation.navigate('ChapterList', { course: MINING_MATE })}>
           <View style={[pyss.iconWrap, { backgroundColor:`${p.iconColor}15` }]}>
             <Icon size={24} color={p.iconColor} />
           </View>
           <View style={[pyss.yearBadge, { backgroundColor:`${p.iconColor}20` }]}>
-            <Text style={[pyss.year, { color:p.iconColor }]}>PYQ {p.year}</Text>
+            <Text style={[pyss.year, { color: p.iconColor }]}>PYQ {p.year}</Text>
           </View>
-
           <Text style={pyss.topic} numberOfLines={2}>{p.topic}</Text>
           <Text style={pyss.qCount}>{p.qCount} Questions</Text>
-
-          <TouchableOpacity 
-            style={[pyss.btn, { backgroundColor:C.gold }]} 
-            activeOpacity={0.85}
-            onPress={() => navigation.navigate('ChapterList', { 
-              course: MINING_MATE
-              })}>
+          <TouchableOpacity style={[pyss.btn, { backgroundColor: C.gold }]} activeOpacity={0.85}
+            onPress={() => navigation.navigate('ChapterList', { course: MINING_MATE })}>
             <Text style={pyss.btnText}>Practice →</Text>
           </TouchableOpacity>
-
         </TouchableOpacity>
       );
     })}
@@ -440,6 +248,27 @@ const pyss = StyleSheet.create({
   qCount:   { fontSize:10, color:C.textSecondary, fontWeight:'500' },
   btn:      { borderRadius:9, paddingVertical:9, alignItems:'center' },
   btnText:  { fontSize:11, fontWeight:'800', color:'#0D1117' },
+});
+
+// ─── Quick Practice ───────────────────────────────────────────────────────────
+const QuickPractice = ({ items }: { items: QuickPracticeItem[] }) => (
+  <View style={qss.row}>
+    {items.map(ch => {
+      const Icon = ICON_MAP[ch.iconType] ?? Zap;
+      return (
+        <TouchableOpacity key={ch.id} style={qss.chip} activeOpacity={0.8}>
+          <Icon size={22} color={ch.color} />
+          <Text style={qss.label}>{ch.label}</Text>
+        </TouchableOpacity>
+      );
+    })}
+  </View>
+);
+
+const qss = StyleSheet.create({
+  row:   { flexDirection:'row', gap:10, marginBottom:20 },
+  chip:  { flex:1, borderRadius:14, borderWidth:1, paddingVertical:16, alignItems:'center', gap:7, backgroundColor:C.bgCard, borderColor:`${C.gold}30` },
+  label: { fontSize:11, fontWeight:'700', color:C.textPrimary, letterSpacing:0.2 },
 });
 
 // ─── Header ───────────────────────────────────────────────────────────────────
@@ -458,14 +287,10 @@ const HomeHeader = () => {
         </View>
       </View>
       <View style={hs.actions}>
-        <TouchableOpacity
-          style={hs.iconBtn}
-          onPress={() => navigation.navigate('FirstAid')}
-        >
+        <TouchableOpacity style={hs.iconBtn} onPress={() => navigation.navigate('FirstAid')}>
           <HeartPulse size={18} color={C.success} />
         </TouchableOpacity>
-        <TouchableOpacity style={hs.iconBtn}
-        onPress={() => navigation.navigate('Announcements')}>
+        <TouchableOpacity style={hs.iconBtn} onPress={() => navigation.navigate('Announcements')}>
           <BellIcon size={18} color={C.textSecondary} />
         </TouchableOpacity>
       </View>
@@ -489,39 +314,51 @@ const hs = StyleSheet.create({
 export default function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
+  // ✅ Ek hi hook se saara data aata hai
+  const { data, isLoading, isError, refetch } = useExamData();
+
   return (
     <View style={{ flex:1, backgroundColor:'#0F1923' }}>
       <StatusBar barStyle="light-content" backgroundColor='#0F1923' />
-
       <HomeHeader />
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{  paddingBottom:100}}
-      >
-        {/* Promotional Slideshow */}
-        <View style={{ paddingHorizontal:16 }}>
-          <BannerSlider />
-        </View>
+      {/* Loading State */}
+      {isLoading && <HomeSkeleton />}
 
-        <View style={{ paddingHorizontal:16 }}>
-          <StatsStrip />
-        </View>
+      {/* Error State */}
+      {isError && <ErrorView onRetry={refetch} />}
 
-        {/* PYQ */}
-        <View style={{ paddingHorizontal:16 }}>
-        <SectionHeader title="Previous Year Questions" onSeeAll={() => {}} />
-        </View>
-        <View style={{ marginBottom:20,}}>
-          <PYQCards navigation={navigation} />
-        </View>
+      {/* Success State */}
+      {data && (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom:100 }}
+        >
+          {/* Banner Slider */}
+          <View style={{ paddingHorizontal:16 }}>
+            <BannerSlider slides={data.bannerSlides} />
+          </View>
 
-        {/* Quick Practice */}
-        <View style={{ paddingHorizontal:16 }}>
-          <SectionHeader title="Quick Practice" />
-          <QuickPractice />
-        </View>
-      </ScrollView>
+          {/* Stats Strip */}
+          <View style={{ paddingHorizontal:16 }}>
+            <StatsStrip data={data} />
+          </View>
+
+          {/* PYQ Section */}
+          <View style={{ paddingHorizontal:16 }}>
+            <SectionHeader title="Previous Year Questions" onSeeAll={() => {}} />
+          </View>
+          <View style={{ marginBottom:20 }}>
+            <PYQCards pyqList={data.pyqList} navigation={navigation} />
+          </View>
+
+          {/* Quick Practice */}
+          <View style={{ paddingHorizontal:16 }}>
+            <SectionHeader title="Quick Practice" />
+            <QuickPractice items={data.quickPractice} />
+          </View>
+        </ScrollView>
+      )}
     </View>
   );
 }
