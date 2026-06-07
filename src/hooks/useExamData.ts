@@ -78,5 +78,7 @@ export const useExamData = () => {
   return useQuery<ExamData, Error>({
     queryKey: ['examData', 'mining_mate'],
     queryFn: fetchExamData,
+    staleTime: 0,
+    refetchInterval: 5000,
   });
 };
