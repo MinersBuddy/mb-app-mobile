@@ -12,7 +12,20 @@
           "package_name": "com.minersbuddy"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "349261873355-vp5pv1a1j870haaft81phl1hfpb2mpvn.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.minersbuddy",
+            "certificate_hash": "69538bef32a4225544cabee932aa04f4738b9161"
+          }
+        },
+        {
+          "client_id": "349261873355-jer07kiednk0fj8vj2g8geu5kjh7hnpc.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCm7DATM_mdr-1RqkkEAvBnatWf8JA2uWI"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "349261873355-jer07kiednk0fj8vj2g8geu5kjh7hnpc.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
