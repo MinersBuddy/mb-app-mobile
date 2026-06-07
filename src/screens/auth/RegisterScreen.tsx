@@ -53,7 +53,6 @@ import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Register'>;
-  route:      RouteProp<RootStackParamList, 'Register'>;
 };
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
