@@ -1,11 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import {
   createNativeStackNavigator,
   NativeStackNavigationProp,
 } from '@react-navigation/native-stack';
-
-import { useState } from 'react';
 import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
 
 // ─── Screen imports ────────────────────────────────────────────────────────────
@@ -25,29 +23,22 @@ import { CourseConfig, Chapter } from '../data/courseConfig';
 
 // ─── Route param list ──────────────────────────────────────────────────────────
 export type RootStackParamList = {
-  // Auth flow
-  Onboarding:   undefined;
-  Login:        undefined;
-  MobileVerify: undefined;
-
-  // phone string — OTP verify ke baad Register mein auto-fill hoga
-  OtpVerify:    { phone: string };
-  Register:     { phone: string };
-
-  MainTabs:  undefined;
-  FirstAid:  undefined;
-  Courses:   undefined;
-  Tests:     undefined;
+  Onboarding:    undefined;
+  Login:         undefined;
+  MobileVerify:  undefined;
+  OtpVerify:     { phone: string };
+  Register:      { phone: string };
+  MainTabs:      undefined;
+  FirstAid:      undefined;
+  Courses:       undefined;
+  Tests:         undefined;
   Announcements: undefined;
-
-  // Course screens
   ChapterList: {
     course?:      CourseConfig;
     chapter?:     Chapter;
     courseColor?: string;
     courseName?:  string;
   };
-
   QuizScreen: {
     quizTitle:   string;
     courseColor: string;
@@ -56,10 +47,8 @@ export type RootStackParamList = {
   };
 };
 
-// ─── Typed navigation prop ─────────────────────────────────────────────────────
 export type RootNavProp = NativeStackNavigationProp<RootStackParamList>;
 
-// ─── Stack instance ────────────────────────────────────────────────────────────
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const CoursesScreen = () => null;
@@ -67,10 +56,30 @@ const TestsScreen   = () => null;
 
 // ─── Navigator ─────────────────────────────────────────────────────────────────
 export default function AppNavigator() {
-  
-  const [confirmation, setConfirmation] = 
+
+  // Firebase confirmation result — MobileVerify set karta hai, OtpVerify use karta hai
+  const [confirmation, setConfirmation] =
     useState<FirebaseAuthTypes.ConfirmationResult | null>(null);
-  
+
+  // ── Firebase helpers ─────────────────────────────────────────────────────
+
+  const sendOtp = async (phoneE164: string): Promise<void> => {
+    const result = await auth().signInWithPhoneNumber(phoneE164);
+    setConfirmation(result);
+  };
+
+  const verifyOtp = async (_phone: string, otp: string): Promise<void> => {
+    if (!confirmation) throw new Error('No confirmation. Please resend OTP.');
+    await confirmation.confirm(otp);
+  };
+
+  const resendOtp = async (phoneE164: string): Promise<void> => {
+    const result = await auth().signInWithPhoneNumber(phoneE164);
+    setConfirmation(result);
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────
+
   return (
     <NavigationContainer>
       <Stack.Navigator
@@ -82,11 +91,31 @@ export default function AppNavigator() {
         }}
       >
         {/* Auth */}
-        <Stack.Screen name="Onboarding"   component={OnboardingScreen}   />
-        <Stack.Screen name="Login"        component={LoginScreen}        />
-        <Stack.Screen name="MobileVerify" component={MobileVerifyScreen} />
-        <Stack.Screen name="OtpVerify"    component={OtpVerifyScreen}    />
-        <Stack.Screen name="Register"     component={RegisterScreen}     />
+        <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+        <Stack.Screen name="Login"      component={LoginScreen}      />
+
+        {/* MobileVerify — sendOtp inject */}
+        <Stack.Screen name="MobileVerify">
+          {(props) => (
+            <MobileVerifyScreen
+              {...props}
+              onSendOtp={sendOtp}
+            />
+          )}
+        </Stack.Screen>
+
+        {/* OtpVerify — verifyOtp + resendOtp inject */}
+        <Stack.Screen name="OtpVerify">
+          {(props) => (
+            <OtpVerifyScreen
+              {...props}
+              onVerifyOtp={verifyOtp}
+              onResendOtp={resendOtp}
+            />
+          )}
+        </Stack.Screen>
+
+        <Stack.Screen name="Register" component={RegisterScreen} />
 
         {/* Main app */}
         <Stack.Screen
@@ -100,7 +129,7 @@ export default function AppNavigator() {
         <Stack.Screen name="QuizScreen"    component={QuizScreen}         />
         <Stack.Screen name="Announcements" component={AnnouncementScreen} />
 
-        {/* Other screens */}
+        {/* Other */}
         <Stack.Screen name="FirstAid" component={FirstAidCenter} />
         <Stack.Screen name="Courses"  component={CoursesScreen}  />
         <Stack.Screen name="Tests"    component={TestsScreen}    />
