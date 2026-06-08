@@ -1,6 +1,10 @@
 name: Revert to Build 17
 on:
   workflow_dispatch:
+
+permissions:
+  contents: write
+
 jobs:
   revert:
     runs-on: ubuntu-latest
