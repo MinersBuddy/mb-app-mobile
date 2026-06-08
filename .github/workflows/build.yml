@@ -26,8 +26,6 @@ jobs:
             -alias ${{ secrets.KEY_ALIAS }} \
             -storepass ${{ secrets.KEYSTORE_PASSWORD }} \
             -keypass ${{ secrets.KEY_PASSWORD }} | grep -A 1 "SHA1:"
-      - name: Clean Build        
-        run: cd android && ./gradlew clean
       - name: Build Release APK
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
