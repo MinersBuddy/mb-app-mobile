@@ -1,20 +1,49 @@
-name: Revert to Build 17
+name: Build APK
+
 on:
-  workflow_dispatch:
+  push:
+    branches: [main]
 
 jobs:
-  revert:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
         with:
-          fetch-depth: 0
-          token: ${{ secrets.PAT_TOKEN }}
-      
-      - name: Revert to commit 2961c84
+          java-version: '17'
+          distribution: 'temurin'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
+
+      - name: Setup Keystore
         run: |
-          git config user.email "action@github.com"
-          git config user.name "GitHub Action"
-          git revert --no-commit 2961c84..HEAD
-          git commit -m "Revert to Build #17 stable state"
-          git push
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/minerbuddy-release.keystore
+
+      - name: Build Release APK
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          cd android
+          ./gradlew assembleRelease \
+            -Pandroid.injected.signing.store.file=$GITHUB_WORKSPACE/android/app/minerbuddy-release.keystore \
+            -Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD \
+            -Pandroid.injected.signing.key.alias=$KEY_ALIAS \
+            -Pandroid.injected.signing.key.password=$KEY_PASSWORD
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: MinersBuddy-release
+          path: android/app/build/outputs/apk/release/

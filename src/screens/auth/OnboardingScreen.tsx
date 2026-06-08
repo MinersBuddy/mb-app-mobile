@@ -314,7 +314,7 @@ export default function OnboardingScreen({
     SLIDES[currentIndex]?.accent ?? COLORS.gold;
 
   const goToHome = () =>
-    navigation.replace('Login');
+    navigation.replace('MainTabs');
 
   const handleNext = () => {
     if (!isLastSlide) {

@@ -1,249 +1,399 @@
 /**
  * LoginScreen.tsx
- * TEMP FIX: Google signin removed — direct Register navigate
- * SVG hata ke PNG use kiya — react-native-svg crash fix
+ * Location: MinersBuddy/src/screens/auth/LoginScreen.tsx
+ *
+ * UI-only login screen. Firebase logic baad mein add karna.
+ * handleLogin() function ready hai — sirf Firebase call wahan likhna.
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
+  TextInput,
+  KeyboardAvoidingView,
+  ScrollView,
+  Platform,
   StatusBar,
-  Dimensions,
   Animated,
-  Image,
+  Dimensions,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
-type Props = {
-  navigation: NativeStackNavigationProp<RootStackParamList, 'Login'>;
+// ─── Navigation type ───────────────────────────────────────────────────────────
+type LoginNavProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
+type Props = { navigation: LoginNavProp };
+
+// ─── Design Tokens ─────────────────────────────────────────────────────────────
+const COLORS = {
+  navy:      '#0F1923',
+  navyMid:   '#1A2B3C',
+  navyLight: '#243447',
+  navyCard:  '#1E2F42',
+  gold:      '#F59E0B',
+  goldLight: '#FCD34D',
+  goldDark:  '#D97706',
+  white:     '#FFFFFF',
+  offWhite:  '#F1F5F9',
+  muted:     '#94A3B8',
+  mutedDark: '#64748B',
+  success:   '#10B981',
+  error:     '#EF4444',
+} as const;
+
+const { width } = Dimensions.get('window');
+
+// ─── Reusable Input Field ──────────────────────────────────────────────────────
+type InputFieldProps = {
+  label: string;
+  placeholder: string;
+  value: string;
+  onChangeText: (t: string) => void;
+  icon: string;
+  secureTextEntry?: boolean;
+  keyboardType?: 'default' | 'email-address' | 'phone-pad';
+  autoCapitalize?: 'none' | 'sentences' | 'words';
+  rightElement?: React.ReactNode;
+  error?: string;
 };
 
-const { width, height } = Dimensions.get('window');
+const InputField = ({
+  label,
+  placeholder,
+  value,
+  onChangeText,
+  icon,
+  secureTextEntry = false,
+  keyboardType = 'default',
+  autoCapitalize = 'none',
+  rightElement,
+  error,
+}: InputFieldProps) => {
+  const [focused, setFocused] = useState(false);
+  const borderAnim = useRef(new Animated.Value(0)).current;
 
-export default function LoginScreen({ navigation }: Props) {
-  const fadeAnim  = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(40)).current;
-  const scaleAnim = useRef(new Animated.Value(0.85)).current;
-  const ring1Anim = useRef(new Animated.Value(0)).current;
-  const ring2Anim = useRef(new Animated.Value(0)).current;
-  const ring3Anim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.sequence([
-      Animated.delay(200),
-      Animated.parallel([
-        Animated.timing(fadeAnim,  { toValue: 1, duration: 800, useNativeDriver: true }),
-        Animated.timing(slideAnim, { toValue: 0, duration: 700, useNativeDriver: true }),
-        Animated.spring(scaleAnim, { toValue: 1, friction: 8, tension: 40, useNativeDriver: true }),
-      ]),
-    ]).start();
-
-    const pulse = (anim: Animated.Value, delay: number) =>
-      Animated.loop(
-        Animated.sequence([
-          Animated.delay(delay),
-          Animated.timing(anim, { toValue: 1, duration: 2000, useNativeDriver: true }),
-          Animated.timing(anim, { toValue: 0, duration: 2000, useNativeDriver: true }),
-        ])
-      ).start();
-
-    pulse(ring1Anim, 0);
-    pulse(ring2Anim, 600);
-    pulse(ring3Anim, 1200);
-  }, []);
-
-  // TEMP: Direct Register navigate — Google signin baad mein
-  const handleGoogleSignIn = () => {
-    navigation.replace('Register');
+  const onFocus = () => {
+    setFocused(true);
+    Animated.timing(borderAnim, { toValue: 1, duration: 200, useNativeDriver: false }).start();
+  };
+  const onBlur = () => {
+    setFocused(false);
+    Animated.timing(borderAnim, { toValue: 0, duration: 200, useNativeDriver: false }).start();
   };
 
-  const ring1Opacity = ring1Anim.interpolate({ inputRange: [0, 1], outputRange: [0.15, 0.04] });
-  const ring2Opacity = ring2Anim.interpolate({ inputRange: [0, 1], outputRange: [0.12, 0.03] });
-  const ring3Opacity = ring3Anim.interpolate({ inputRange: [0, 1], outputRange: [0.08, 0.02] });
+  const borderColor = borderAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [error ? COLORS.error : COLORS.navyLight, error ? COLORS.error : COLORS.gold],
+  });
 
   return (
-    <View style={s.root}>
-      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+    <View style={inputStyles.wrapper}>
+      <Text style={inputStyles.label}>{label}</Text>
+      <Animated.View style={[inputStyles.container, { borderColor }]}>
+        <Text style={inputStyles.icon}>{icon}</Text>
+        <TextInput
+          style={inputStyles.input}
+          placeholder={placeholder}
+          placeholderTextColor={COLORS.mutedDark}
+          value={value}
+          onChangeText={onChangeText}
+          secureTextEntry={secureTextEntry}
+          keyboardType={keyboardType}
+          autoCapitalize={autoCapitalize}
+          onFocus={onFocus}
+          onBlur={onBlur}
+          selectionColor={COLORS.gold}
+        />
+        {rightElement}
+      </Animated.View>
+      {error ? <Text style={inputStyles.errorText}>{error}</Text> : null}
+    </View>
+  );
+};
 
-      <View style={s.glowTop} />
-      <View style={s.glowBottom} />
+const inputStyles = StyleSheet.create({
+  wrapper:    { marginBottom: 16 },
+  label:      { fontSize: 12, fontWeight: '700', color: COLORS.muted, letterSpacing: 0.8, marginBottom: 8, textTransform: 'uppercase' },
+  container:  { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.navyMid, borderRadius: 14, borderWidth: 1.5, paddingHorizontal: 14, height: 54, gap: 10 },
+  icon:       { fontSize: 18 },
+  input:      { flex: 1, fontSize: 15, color: COLORS.white, fontWeight: '500' },
+  errorText:  { fontSize: 11, color: COLORS.error, fontWeight: '600', marginTop: 5, marginLeft: 4 },
+});
 
-      <Animated.View style={[s.ring, s.ring3, { opacity: ring3Opacity }]} />
-      <Animated.View style={[s.ring, s.ring2, { opacity: ring2Opacity }]} />
-      <Animated.View style={[s.ring, s.ring1, { opacity: ring1Opacity }]} />
+// ─── Main Screen ───────────────────────────────────────────────────────────────
+export default function LoginScreen({ navigation }: Props) {
+  const [email,       setEmail]       = useState('');
+  const [password,    setPassword]    = useState('');
+  const [showPass,    setShowPass]    = useState(false);
+  const [isLoading,   setIsLoading]   = useState(false);
+  const [errors,      setErrors]      = useState<{ email?: string; password?: string }>({});
 
-      <View style={s.gridWrap} pointerEvents="none">
-        {[...Array(8)].map((_, i) => (
-          <View key={i} style={[s.gridLine, { top: (height / 8) * i }]} />
-        ))}
-      </View>
+  // ── Validation ──────────────────────────────────────────────────────────────
+  const validate = (): boolean => {
+    const newErrors: typeof errors = {};
+    if (!email.trim())                        newErrors.email    = 'Email required';
+    else if (!/\S+@\S+\.\S+/.test(email))    newErrors.email    = 'Invalid email format';
+    if (!password)                            newErrors.password = 'Password required';
+    else if (password.length < 6)            newErrors.password = 'Min 6 characters';
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
-      <Animated.View
-        style={[
-          s.content,
-          { opacity: fadeAnim, transform: [{ translateY: slideAnim }, { scale: scaleAnim }] },
-        ]}
+  // ── Login Handler — Firebase yahan add karna ────────────────────────────────
+  const handleLogin = async () => {
+    if (!validate()) return;
+    setIsLoading(true);
+    try {
+      // TODO: Firebase auth call here
+      // await signInWithEmailAndPassword(auth, email, password);
+      navigation.replace('Home');
+    } catch (error) {
+      // TODO: Handle Firebase errors here
+      console.error('Login error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.navy} />
+
+      {/* Background decorative rings */}
+      <View style={styles.bgRing1} />
+      <View style={styles.bgRing2} />
+
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <View style={s.logoSection}>
-          <View style={s.logoOuter}>
-            <View style={s.logoInner}>
-              <Text style={s.logoEmoji}>⛏️</Text>
-            </View>
-          </View>
-          <Text style={s.brand}>
-            Miners<Text style={s.brandAccent}>Buddy</Text>
-          </Text>
-          <View style={s.tagWrap}>
-            <View style={s.tagDot} />
-            <Text style={s.tagline}>India's #1 Mining Exam Prep</Text>
-            <View style={s.tagDot} />
-          </View>
-        </View>
-
-        <View style={s.badgeRow}>
-          {['CMR 2017', 'Mining Mate', 'Overman', 'Manager'].map((label, i) => (
-            <View key={i} style={s.badge}>
-              <Text style={s.badgeText}>{label}</Text>
-            </View>
-          ))}
-        </View>
-
-        <View style={s.statsRow}>
-          {[
-            { val: '1200+', lbl: 'Students' },
-            { val: '250+',  lbl: 'Questions' },
-            { val: '15',    lbl: 'Chapters' },
-          ].map((stat, i) => (
-            <React.Fragment key={stat.lbl}>
-              <View style={s.statItem}>
-                <Text style={s.statVal}>{stat.val}</Text>
-                <Text style={s.statLbl}>{stat.lbl}</Text>
-              </View>
-              {i < 2 && <View style={s.statDiv} />}
-            </React.Fragment>
-          ))}
-        </View>
-      </Animated.View>
-
-      <Animated.View style={[s.bottom, { opacity: fadeAnim }]}>
-        <View style={s.separator} />
-        <Text style={s.welcomeText}>Welcome to MinersBuddy</Text>
-        <Text style={s.subText}>Sign in to start your exam preparation</Text>
-
-        <TouchableOpacity
-          style={s.googleBtn}
-          onPress={handleGoogleSignIn}
-          activeOpacity={0.88}
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          <View style={s.googleBtnInner}>
-            {/* ✅ SVG hata diya — PNG use ho raha hai */}
-            <View style={s.gWrap}>
-              <Image
-                source={require('../../assets/images/google-logo.png')}
-                style={{ width: 24, height: 24 }}
-                resizeMode="contain"
-              />
-            </View>
-            <Text style={s.googleBtnText}>Continue with Google</Text>
-          </View>
-        </TouchableOpacity>
+          {/* Back button */}
+          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+            <Text style={styles.backIcon}>←</Text>
+          </TouchableOpacity>
 
-        <Text style={s.terms}>
-          By continuing, you agree to our{' '}
-          <Text style={s.termsLink}>Terms of Service</Text>
-          {' '}and{' '}
-          <Text style={s.termsLink}>Privacy Policy</Text>
-        </Text>
-      </Animated.View>
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.logoWrap}>
+              <View style={styles.logoBg}>
+                <Text style={styles.logoEmoji}>⛏️</Text>
+              </View>
+              <View style={styles.logoGlow} />
+            </View>
+            <Text style={styles.brandName}>
+              Miners<Text style={{ color: COLORS.gold }}>Buddy</Text>
+            </Text>
+            <Text style={styles.heading}>Welcome back</Text>
+            <Text style={styles.subheading}>Sign in to continue your exam prep</Text>
+          </View>
+
+          {/* Form card */}
+          <View style={styles.formCard}>
+            <InputField
+              label="Email Address"
+              placeholder="you@example.com"
+              value={email}
+              onChangeText={setEmail}
+              icon="✉️"
+              keyboardType="email-address"
+              error={errors.email}
+            />
+
+            <InputField
+              label="Password"
+              placeholder="Enter your password"
+              value={password}
+              onChangeText={setPassword}
+              icon="🔒"
+              secureTextEntry={!showPass}
+              error={errors.password}
+              rightElement={
+                <TouchableOpacity onPress={() => setShowPass(p => !p)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Text style={styles.eyeIcon}>{showPass ? '🙈' : '👁️'}</Text>
+                </TouchableOpacity>
+              }
+            />
+
+            {/* Forgot password */}
+            <TouchableOpacity style={styles.forgotBtn}>
+              <Text style={styles.forgotText}>Forgot Password?</Text>
+            </TouchableOpacity>
+
+            {/* Login CTA */}
+            <TouchableOpacity
+              style={[styles.ctaBtn, isLoading && styles.ctaBtnDisabled]}
+              onPress={handleLogin}
+              activeOpacity={0.85}
+              disabled={isLoading}
+            >
+              <Text style={styles.ctaBtnText}>
+                {isLoading ? 'Signing In...' : 'Sign In →'}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Divider */}
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or continue with</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* Google SSO placeholder */}
+            <TouchableOpacity style={styles.googleBtn} activeOpacity={0.8}>
+              <Text style={styles.googleIcon}>G</Text>
+              <Text style={styles.googleText}>Continue with Google</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Register link */}
+          <TouchableOpacity
+            style={styles.registerRow}
+            onPress={() => navigation.navigate('Register')}
+          >
+            <Text style={styles.registerText}>
+              New to MinersBuddy?{' '}
+              <Text style={styles.registerLink}>Create Account</Text>
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
 
-const GOLD   = '#F59E0B';
-const NAVY   = '#0D1117';
-const CARD   = '#161C25';
-const BORDER = '#1E2A38';
-
-const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: NAVY, alignItems: 'center', justifyContent: 'space-between' },
-
-  glowTop: {
-    position: 'absolute', width: 320, height: 320, borderRadius: 160,
-    backgroundColor: GOLD, top: -180, alignSelf: 'center', opacity: 0.04,
-  },
-  glowBottom: {
-    position: 'absolute', width: 280, height: 280, borderRadius: 140,
-    backgroundColor: GOLD, bottom: -140, alignSelf: 'center', opacity: 0.05,
+// ─── Styles ────────────────────────────────────────────────────────────────────
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.navy,
   },
 
-  ring: { position: 'absolute', borderRadius: 999, borderWidth: 1, borderColor: GOLD, alignSelf: 'center' },
-  ring1: { width: 200, height: 200, top: height * 0.18 },
-  ring2: { width: 280, height: 280, top: height * 0.14 },
-  ring3: { width: 360, height: 360, top: height * 0.10 },
-
-  gridWrap: { position: 'absolute', width, height, opacity: 0.03 },
-  gridLine: { position: 'absolute', width, height: 1, backgroundColor: GOLD },
-
-  content: {
-    flex: 1, alignItems: 'center', justifyContent: 'center',
-    paddingTop: 60, gap: 28, width: '100%', paddingHorizontal: 24,
+  // Background decor
+  bgRing1: {
+    position: 'absolute',
+    width: 400,
+    height: 400,
+    borderRadius: 200,
+    borderWidth: 1,
+    borderColor: `${COLORS.gold}08`,
+    top: -150,
+    right: -120,
+  },
+  bgRing2: {
+    position: 'absolute',
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    borderWidth: 1,
+    borderColor: `${COLORS.gold}06`,
+    bottom: 80,
+    left: -100,
   },
 
-  logoSection: { alignItems: 'center', gap: 14 },
-  logoOuter: {
-    width: 110, height: 110, borderRadius: 32, borderWidth: 1,
-    borderColor: `${GOLD}30`, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: `${GOLD}08`,
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingTop: Platform.OS === 'ios' ? 60 : 48,
+    paddingBottom: 40,
   },
-  logoInner: {
-    width: 86, height: 86, borderRadius: 24, backgroundColor: `${GOLD}15`,
-    borderWidth: 1, borderColor: `${GOLD}40`, alignItems: 'center', justifyContent: 'center',
+
+  // Back
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: COLORS.navyMid,
+    borderWidth: 1,
+    borderColor: COLORS.navyLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 28,
   },
-  logoEmoji: { fontSize: 42 },
+  backIcon: { fontSize: 18, color: COLORS.muted },
 
-  brand:       { fontSize: 34, fontWeight: '800', color: '#F0F6FC', letterSpacing: -1 },
-  brandAccent: { color: GOLD },
-
-  tagWrap: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  tagDot:  { width: 4, height: 4, borderRadius: 2, backgroundColor: `${GOLD}60` },
-  tagline: { fontSize: 13, color: '#8B949E', fontWeight: '500', letterSpacing: 0.3 },
-
-  badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' },
-  badge: {
-    borderWidth: 1, borderColor: `${GOLD}30`, borderRadius: 20,
-    paddingHorizontal: 12, paddingVertical: 5, backgroundColor: `${GOLD}08`,
+  // Header
+  header: { alignItems: 'center', marginBottom: 32 },
+  logoWrap: { position: 'relative', marginBottom: 16 },
+  logoBg: {
+    width: 72,
+    height: 72,
+    borderRadius: 22,
+    backgroundColor: `${COLORS.gold}18`,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: `${COLORS.gold}35`,
   },
-  badgeText: { fontSize: 11, color: `${GOLD}CC`, fontWeight: '600', letterSpacing: 0.4 },
-
-  statsRow: {
-    flexDirection: 'row', backgroundColor: CARD, borderRadius: 16,
-    borderWidth: 1, borderColor: BORDER, paddingVertical: 16, width: '100%',
+  logoEmoji: { fontSize: 34 },
+  logoGlow: {
+    position: 'absolute',
+    width: 88,
+    height: 88,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: `${COLORS.gold}20`,
+    top: -8,
+    left: -8,
   },
-  statItem: { flex: 1, alignItems: 'center', gap: 3 },
-  statVal:  { fontSize: 22, fontWeight: '900', color: GOLD, letterSpacing: -0.5 },
-  statLbl:  { fontSize: 11, color: '#8B949E', fontWeight: '500' },
-  statDiv:  { width: 1, backgroundColor: BORDER, marginVertical: 4 },
+  brandName: { fontSize: 22, fontWeight: '800', color: COLORS.white, letterSpacing: -0.3, marginBottom: 20 },
+  heading:   { fontSize: 28, fontWeight: '800', color: COLORS.white, letterSpacing: -0.5, marginBottom: 8 },
+  subheading:{ fontSize: 14, color: COLORS.muted, fontWeight: '400', textAlign: 'center' },
 
-  bottom: { width: '100%', paddingHorizontal: 24, paddingBottom: 44, gap: 14, alignItems: 'center' },
-  separator: { width: 48, height: 1, backgroundColor: `${GOLD}40`, marginBottom: 4 },
+  // Form card
+  formCard: {
+    backgroundColor: COLORS.navyCard,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: COLORS.navyLight,
+    padding: 20,
+    marginBottom: 20,
+  },
 
-  welcomeText: { fontSize: 20, fontWeight: '800', color: '#F0F6FC', letterSpacing: -0.4 },
-  subText:     { fontSize: 13, color: '#8B949E', fontWeight: '400', textAlign: 'center', marginTop: -6 },
+  eyeIcon:   { fontSize: 16 },
+  forgotBtn: { alignSelf: 'flex-end', marginBottom: 20, marginTop: -4 },
+  forgotText:{ fontSize: 13, color: COLORS.gold, fontWeight: '600' },
 
+  // CTA
+  ctaBtn: {
+    backgroundColor: COLORS.gold,
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  ctaBtnDisabled: { opacity: 0.6 },
+  ctaBtnText: { color: COLORS.navy, fontSize: 16, fontWeight: '800', letterSpacing: 0.3 },
+
+  // Divider
+  divider:     { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: COLORS.navyLight },
+  dividerText: { fontSize: 12, color: COLORS.mutedDark, fontWeight: '600' },
+
+  // Google
   googleBtn: {
-    width: '100%', height: 58, backgroundColor: '#FFFFFF', borderRadius: 50,
-    alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35, shadowRadius: 12, elevation: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: COLORS.navyMid,
+    borderRadius: 14,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: COLORS.navyLight,
   },
-  googleBtnInner: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  gWrap:          { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
-  googleBtnText:  { fontSize: 16, fontWeight: '700', color: '#1a1a1a', letterSpacing: 0.1 },
+  googleIcon: { fontSize: 16, fontWeight: '800', color: COLORS.white },
+  googleText: { fontSize: 14, color: COLORS.offWhite, fontWeight: '600' },
 
-  terms:     { textAlign: 'center', fontSize: 12, color: '#484F58', lineHeight: 18, fontWeight: '400' },
-  termsLink: { color: '#6B7280', fontWeight: '600' },
+  // Register link
+  registerRow:  { alignItems: 'center' },
+  registerText: { fontSize: 14, color: COLORS.mutedDark, fontWeight: '500' },
+  registerLink: { color: COLORS.gold, fontWeight: '700' },
 });

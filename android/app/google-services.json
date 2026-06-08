@@ -1,44 +1,26 @@
 {
   "project_info": {
-    "project_number": "349261873355",
-    "project_id": "minersbuddy-b70c8",
-    "storage_bucket": "minersbuddy-b70c8.firebasestorage.app"
+    "project_number": "922482355724",
+    "project_id": "minersbuddy-aa260",
+    "storage_bucket": "minersbuddy-aa260.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:349261873355:android:36b62763804d3bb75d9b4e",
+        "mobilesdk_app_id": "1:922482355724:android:b3fc6f580f86fd2ec88829",
         "android_client_info": {
           "package_name": "com.minersbuddy"
         }
       },
-      "oauth_client": [
-        {
-          "client_id": "349261873355-vp5pv1a1j870haaft81phl1hfpb2mpvn.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.minersbuddy",
-            "certificate_hash": "69538bef32a4225544cabee932aa04f4738b9161"
-          }
-        },
-        {
-          "client_id": "349261873355-jer07kiednk0fj8vj2g8geu5kjh7hnpc.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
+      "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCm7DATM_mdr-1RqkkEAvBnatWf8JA2uWI"
+          "current_key": "AIzaSyCpn6b-89bMZaW6b9VyMl3UZbx5qNSVpI4"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "349261873355-jer07kiednk0fj8vj2g8geu5kjh7hnpc.apps.googleusercontent.com",
-              "client_type": 3
-            }
-          ]
+          "other_platform_oauth_client": []
         }
       }
     }
