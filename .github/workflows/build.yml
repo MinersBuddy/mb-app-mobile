@@ -2,10 +2,6 @@ name: Revert to Build 17
 on:
   workflow_dispatch:
 
-permissions:
-  contents: write
-  workflows: write
-
 jobs:
   revert:
     runs-on: ubuntu-latest
@@ -13,7 +9,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT_TOKEN }}
       
       - name: Revert to commit 2961c84
         run: |
