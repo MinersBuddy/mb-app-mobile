@@ -1,9 +1,7 @@
 name: Build APK
-
 on:
   push:
     branches: [main]
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -19,8 +17,11 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install dependencies
-        run: npm install --legacy-peer-deps
+      - name: Clean and install dependencies
+        run: |
+          npm cache clean --force
+          rm -rf node_modules
+          npm install --legacy-peer-deps
 
       - name: Make gradlew executable
         run: chmod +x android/gradlew
