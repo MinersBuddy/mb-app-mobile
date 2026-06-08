@@ -1,12 +1,10 @@
 /**
  * LoginScreen.tsx
- * Location: src/screens/auth/LoginScreen.tsx
- *
- * FIX 1: GoogleSignin.configure moved inside useEffect
- * FIX 2: Real Google G logo using react-native-svg
+ * TEMP FIX: Google signin removed — direct Register navigate
+ * Google signin baad mein fix karenge
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,14 +12,10 @@ import {
   TouchableOpacity,
   StatusBar,
   Dimensions,
-  ActivityIndicator,
-  Alert,
   Animated,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
-import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
-import auth from '@react-native-firebase/auth';
 import Svg, { Path } from 'react-native-svg';
 
 type Props = {
@@ -31,8 +25,6 @@ type Props = {
 const { width, height } = Dimensions.get('window');
 
 export default function LoginScreen({ navigation }: Props) {
-  const [loading, setLoading] = useState(false);
-
   const fadeAnim  = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(40)).current;
   const scaleAnim = useRef(new Animated.Value(0.85)).current;
@@ -41,11 +33,6 @@ export default function LoginScreen({ navigation }: Props) {
   const ring3Anim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    //  FIX: Configure yahan karo — component mount hone ke baad
-    GoogleSignin.configure({
-      webClientId: '349261873355-jer07kiednk0fj8vj2g8geu5kjh7hnpc.apps.googleusercontent.com',
-    });
-
     Animated.sequence([
       Animated.delay(200),
       Animated.parallel([
@@ -69,28 +56,9 @@ export default function LoginScreen({ navigation }: Props) {
     pulse(ring3Anim, 1200);
   }, []);
 
-  const handleGoogleSignIn = async () => {
-    if (loading) return;
-    setLoading(true);
-    try {
-      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-      await GoogleSignin.signIn();
-      const { idToken } = await GoogleSignin.getTokens();
-      if (!idToken) throw new Error('No ID token');
-      const credential = auth.GoogleAuthProvider.credential(idToken);
-      const result = await auth().signInWithCredential(credential);
-      const isNew = result.additionalUserInfo?.isNewUser;
-      navigation.replace(isNew ? 'Register' : 'MainTabs');
-    } catch (error: any) {
-      if (error.code === statusCodes.SIGN_IN_CANCELLED) return;
-      if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-        Alert.alert('Error', 'Google Play Services not available');
-        return;
-      }
-      Alert.alert('Sign-in Failed', 'Please try again');
-    } finally {
-      setLoading(false);
-    }
+  // TEMP: Direct Register navigate — Google signin baad mein
+  const handleGoogleSignIn = () => {
+    navigation.replace('Register');
   };
 
   const ring1Opacity = ring1Anim.interpolate({ inputRange: [0, 1], outputRange: [0.15, 0.04] });
@@ -167,27 +135,21 @@ export default function LoginScreen({ navigation }: Props) {
         <Text style={s.subText}>Sign in to start your exam preparation</Text>
 
         <TouchableOpacity
-          style={[s.googleBtn, loading && s.googleBtnLoading]}
+          style={s.googleBtn}
           onPress={handleGoogleSignIn}
           activeOpacity={0.88}
-          disabled={loading}
         >
-          {loading ? (
-            <ActivityIndicator size="small" color="#1a1a1a" />
-          ) : (
-            <View style={s.googleBtnInner}>
-              {/* ✅ Real Google G Logo */}
-              <View style={s.gWrap}>
-                <Svg width={24} height={24} viewBox="0 0 48 48">
-                  <Path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-                  <Path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-                  <Path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-                  <Path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-                </Svg>
-              </View>
-              <Text style={s.googleBtnText}>Continue with Google</Text>
+          <View style={s.googleBtnInner}>
+            <View style={s.gWrap}>
+              <Svg width={24} height={24} viewBox="0 0 48 48">
+                <Path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                <Path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                <Path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                <Path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+              </Svg>
             </View>
-          )}
+            <Text style={s.googleBtnText}>Continue with Google</Text>
+          </View>
         </TouchableOpacity>
 
         <Text style={s.terms}>
@@ -278,10 +240,9 @@ const s = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35, shadowRadius: 12, elevation: 10,
   },
-  googleBtnLoading: { opacity: 0.7 },
-  googleBtnInner:   { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  gWrap:            { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
-  googleBtnText:    { fontSize: 16, fontWeight: '700', color: '#1a1a1a', letterSpacing: 0.1 },
+  googleBtnInner: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  gWrap:          { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
+  googleBtnText:  { fontSize: 16, fontWeight: '700', color: '#1a1a1a', letterSpacing: 0.1 },
 
   terms:     { textAlign: 'center', fontSize: 12, color: '#484F58', lineHeight: 18, fontWeight: '400' },
   termsLink: { color: '#6B7280', fontWeight: '600' },
