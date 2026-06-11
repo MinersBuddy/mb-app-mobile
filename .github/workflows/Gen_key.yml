@@ -1,0 +1,20 @@
+name: Generate New Keystore
+on:
+  workflow_dispatch:
+jobs:
+  keygen:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate and print keystore
+        run: |
+          keytool -genkeypair \
+            -v \
+            -keystore minerbuddy.keystore \
+            -alias minerbuddy \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass Mining@123 \
+            -keypass Mining@123 \
+            -dname "CN=MinersBuddy, OU=App, O=MinersBuddy, L=India, S=India, C=IN"
+          base64 -w 0 minerbuddy.keystore
